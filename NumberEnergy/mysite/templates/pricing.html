@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}定价方案{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto text-center py-10 px-4">
+
+  <h1 class="text-3xl font-bold mb-6 text-blue-400">选择适合你的计划</h1>
+  <p class="mb-10 text-gray-300 text-sm">
+    新用户可免费试用 30 天！推荐好友可额外获得 3 个月奖励。
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <!-- 🟩 Free Plan -->
+    <div class="bg-gray-800 p-6 rounded-xl shadow {% if not is_pro %}border border-green-400{% endif %}">
+      <h2 class="text-xl font-semibold text-blue-300 mb-2">基础版</h2>
+      <p class="mb-4 text-gray-300">基础分析功能</p>
+      <p class="text-2xl font-bold mb-4">免费</p>
+      {% if not session.get('user') %}
+        <a href="/register" class="block mt-4 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-center">
+          免费注册
+        </a>
+      {% elif not is_pro %}
+        <span class="inline-block mt-4 text-green-400 font-semibold">当前已使用</span>
+      {% endif %}
+    </div>
+
+    <!-- 🟦 Monthly Plan -->
+    <div class="bg-gray-800 p-6 rounded-xl shadow border border-blue-400">
+      <h2 class="text-xl font-semibold text-blue-300 mb-2">高级版 - 月付</h2>
+      <p class="mb-4 text-gray-300">解锁所有高级功能</p>
+      <p class="text-2xl font-bold mb-4">RM9.90 / 月</p>
+      <a href="/subscribe/monthly" class="block mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-center">
+        立即订阅
+      </a>
+    </div>
+
+    <!-- 💎 Annual Plan -->
+    <div class="bg-gray-800 p-6 rounded-xl shadow border border-yellow-500">
+      <h2 class="text-xl font-semibold text-yellow-300 mb-2">高级版 - 年付</h2>
+      <p class="mb-2 text-gray-300">解锁所有高级功能</p>
+      <p class="mb-2 text-green-400 text-sm">节省 <strong>RM20.80</strong>，相当于 <strong>2 个月免费</strong></p>
+      <p class="text-2xl font-bold mb-4">RM99 / 年</p>
+      <a href="/subscribe/annual" class="block mt-4 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md text-center">
+        立即订阅
+      </a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

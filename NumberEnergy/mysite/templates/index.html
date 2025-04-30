@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>命理分析工具</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dark: '#111827',
+            surface: '#1F2937',
+            highlight: '#3B82F6',
+            textlight: '#E5E7EB',
+            soft: '#4B5563',
+          },
+          fontFamily: {
+            sans: ['Noto Sans SC', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-dark text-textlight font-sans min-h-screen py-10 px-4">
+
+<div class="max-w-2xl mx-auto">
+
+  <!-- 🌐 Navigation Bar -->
+  <header class="w-full max-w-6xl mx-auto flex items-center justify-between px-4 py-4 bg-surface rounded-xl mb-6 shadow">
+    <div class="flex items-center space-x-3">
+      <img src="/static/EVER green3.png" alt="Logo" class="h-10 w-10 rounded-full border border-highlight">
+      <span class="text-xl font-bold text-highlight">命理工具</span>
+    </div>
+
+    <nav class="space-x-6 text-textlight text-base">
+      <a href="/pricing" class="hover:text-highlight transition">购买</a>
+      {% if session.get('user') %}
+      <a href="/logout" class="hover:text-highlight transition">登出</a>
+      {% else %}
+      <a href="/login" class="hover:text-highlight transition">登录</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <!-- ❗ Show Upgrade Banner if not PRO -->
+  {% if not session.get('is_pro', False) %}
+  <div class="bg-surface p-5 rounded-xl shadow text-yellow-400 mb-6">
+    要查看更多辅助分析？<a href="/pricing" class="text-blue-400 underline">升级为专业版</a>！
+  </div>
+  {% endif %}
+  
+
+  <h1 class="text-3xl font-bold text-textlight mb-6 text-center">✨数字能量分析✨</h1>
+
+  <!-- 📝 Input Form -->
+  <form method="POST" class="bg-surface p-6 rounded-xl shadow-lg space-y-4 mb-10">
+    <label for="input_data" class="block text-lg text-textlight font-semibold">请输入您的车牌、电话号码、或任何英文、数字：</label>
+    <input type="text" id="input_data" name="input_data" required
+           class="w-full px-4 py-2 rounded-md bg-dark border border-soft text-textlight focus:ring-2 focus:ring-highlight outline-none" />
+    <button type="submit"
+            class="w-full bg-highlight hover:bg-blue-700 text-white font-semibold py-2 rounded-md transition-all">
+      分析
+    </button>
+  </form>
+
+  {% if input_data %}
+  <div class="space-y-6">
+
+    <!-- 📋 用户输入 -->
+    <div class="bg-surface p-5 rounded-xl shadow">
+      <h2 class="text-xl font-bold text-highlight mb-2">🧾 您的输入内容：</h2>
+      <p class="text-textlight text-lg">{{ input_data }}</p>
+    </div>
+
+    <!-- 🔍 主分析 -->
+    <div class="bg-surface p-5 rounded-xl shadow">
+      <h2 class="text-xl font-bold text-highlight mb-2">🔍 组合能量分析：</h2>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm text-left border border-gray-700 rounded overflow-hidden">
+          <thead class="bg-gray-800 text-textlight">
+            <tr>
+              <th class="px-4 py-2 border-b border-gray-600">组合类型</th>
+              <th class="px-4 py-2 border-b border-gray-600">数字组合</th>
+              <th class="px-4 py-2 border-b border-gray-600">累计能量</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for key, value in grouped_stats.items() %}
+            <tr class="bg-surface hover:bg-gray-700">
+              <td class="px-4 py-2 border-b border-gray-700">{{ key }}</td>
+              <td class="px-4 py-2 border-b border-gray-700">{{ group_to_pairs[key] | join(', ') }}</td>
+              <td class="px-4 py-2 border-b border-gray-700">{{ grouped_energy[key] if grouped_energy[key] else 0 }}%</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 📈 分布图 -->
+    <div class="bg-surface p-5 rounded-xl shadow">
+      <h2 class="text-xl font-bold text-highlight mb-2">📈 组合类型分布图</h2>
+      <canvas id="groupedBarChart" height="120"></canvas>
+    </div>
+
+    <script>
+      const groupedStats = JSON.parse('{{ grouped_stats_json | tojson | safe }}');
+
+      const labels = Object.keys(groupedStats);
+      const data = Object.values(groupedStats).map(item => item.count);
+
+      const colorMap = {
+        '天医': '#22c55e',
+        '延年': '#0ea5e9',
+        '生气': '#fbbf24',
+        '伏位': '#64748b',
+        '绝命': '#ef4444',
+        '祸害': '#f97316',
+        '五鬼': '#a21caf',
+        '六煞': '#6366f1'
+      };
+
+      const backgroundColors = labels.map(lab => colorMap[lab] || '#a3a3a3');
+
+      const ctx = document.getElementById('groupedBarChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '出现次数',
+            data: data,
+            backgroundColor: backgroundColors,
+            borderRadius: 8
+          }]
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, ticks: { color: '#fff' }, grid: { color: '#334155' }},
+            x: { ticks: { color: '#fff' }, grid: { display: false }}
+          }
+        }
+      });
+    </script>
+
+    {% if ending_warning %}
+    <div class="bg-surface p-5 rounded-xl shadow border border-red-500">
+      <h2 class="text-xl font-bold text-red-400 mb-2">💸 破财警示</h2>
+      <p class="text-textlight text-base">{{ ending_warning }}</p>
+    </div>
+    {% endif %}
+
+    <!-- 📚 高级分析（仅PRO用户） -->
+    {% if is_pro %}
+      {% if secondary_result %}
+      <div class="bg-surface p-5 rounded-xl shadow">
+        <h2 class="text-xl font-bold text-green-400 mb-2">📘 辅助组合提示：</h2>
+        <ul class="list-disc pl-5 space-y-1">
+          {% for result in secondary_result %}
+            <li>{{ result }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if special_definitions %}
+      <div class="bg-surface p-5 rounded-xl shadow">
+        <h2 class="text-xl font-bold text-red-400 mb-2">🚨 特殊组合提醒：</h2>
+        <ul class="list-disc pl-5 space-y-1">
+          {% for result in special_definitions %}
+            <li>{{ result }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    {% endif %}
+
+  </div>
+  {% endif %}
+
+</div>
+
+</body>
+</html>

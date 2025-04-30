@@ -1,0 +1,70 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}命理分析工具{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Fonts & Tailwind -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#111827',
+                        surface: '#1F2937',
+                        highlight: '#3B82F6',
+                        textlight: '#E5E7EB',
+                        soft: '#4B5563',
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans SC', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-dark text-textlight font-sans min-h-screen py-10 px-4">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Navbar -->
+        <header class="flex items-center justify-between px-4 py-4 bg-surface rounded-xl mb-6 shadow">
+            <div class="flex items-center space-x-3">
+                <img src="/static/EVER green3.png" alt="Logo" class="h-10 w-10 rounded-full border border-highlight">
+                <span class="text-xl font-bold text-highlight">命理工具</span>
+                {% if session.get('is_pro') %}
+                    <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">PRO</span>
+                {% endif %}
+            </div>
+
+            <nav class="space-x-6 text-textlight text-base">
+                <a href="/" class="hover:text-highlight transition">主页</a>
+                <a href="/pricing" class="hover:text-highlight transition">购买</a>
+                {% if session.get('user') %}
+                    <a href="/logout" class="hover:text-highlight transition">登出</a>
+                {% else %}
+                    <a href="/login" class="hover:text-highlight transition">登录</a>
+                {% endif %}
+            </nav>
+        </header>
+
+        <!-- Main Page Content -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="mb-4 p-3 rounded {{ 'bg-green-600' if category == 'success' else 'bg-red-600' }}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+</body>
+</html>
