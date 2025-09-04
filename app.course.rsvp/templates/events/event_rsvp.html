@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}RSVP - {{ event.title }}{% endblock %}
+{% block content %}
+<h2>RSVP for {{ event.title }}</h2>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <div class="grid">
+    <label>Full name {{ form.full_name }}</label>
+    <label>Email {{ form.email }}</label>
+  </div>
+  <label>Phone {{ form.phone }}</label>
+  <label>Notes {{ form.notes }}</label>
+  <button type="submit">Submit RSVP</button>
+</form>
+{% endblock %}
+
+

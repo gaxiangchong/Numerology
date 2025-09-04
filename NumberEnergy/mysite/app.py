@@ -1,10 +1,11 @@
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, User
+from models import User, UserHistory
 from extensions import db, migrate  # ✅ NEW
 from flask_bcrypt import Bcrypt
 
+from datetime import datetime, timedelta
 import stripe, json
 
 # Replace with your real test keys
@@ -30,14 +31,14 @@ bcrypt = Bcrypt(app)
 migrate.init_app(app, db)
 
 # Mock database (you can switch to SQLite later)
-users = {
+""" users = {
     "test@example.com": {
         "password": generate_password_hash("123456"),
         "is_pro": True,
         "pro_until": None,  # Optional
         "referrals": 0
     }
-}
+} """
 
 with app.app_context():
     db.create_all()
@@ -235,59 +236,59 @@ special_conditions = {
 energy_descriptions = {
     "天医": {
         "title": "天医磁场",
-        "优点": "天资聪明，心地善良，善解人意，喜欢帮助别人，单纯，事业有成，代天行医，福报好，财运好。",
-        "缺点": "心胸较小，容易受他人影响，单纯容易被欺骗。",
-        "事业": "适合做医生、心理学、艺术、宗教事业等。",
-        "健康": "容易出现血液、血循环、心脑血管等问题。"
+        "优点": "聪明善良，乐于助人，单纯开阔，象征财富、婚缘、福报，学习能力强，财运事业佳。",
+        "缺点": "企图心小，没主见，单纯易被骗，感情路多波折。",
+        "事业": "医生、心理学、宗教、心理疗愈，财路宽广，第六感强，投资回报好。",
+        "健康": "血液循环、心脑血管、五官疾病。"
     },
     "生气": {
         "title": "生气磁场",
-        "优点": "开朗、乐观、随缘、活力四射，情感丰富，喜欢与人交往，和人相处融洽。",
-        "缺点": "缺乏主见，容易受到外界影响，过于乐观，容易被欺骗。",
-        "事业": "适合服务行业、财务、文化产业等。",
-        "健康": "容易多胃病、心脏病、精神病等。"
+        "优点": "乐观开朗，生命力旺盛，花钱大方，贵人多，人缘好，活泼友善，容易交朋友。",
+        "缺点": "安于现状，上进心弱，随遇而安，懒散，容易被骗，破财。",
+        "事业": "服务业，有意外之财，适合投资，容易逢凶化吉。",
+        "健康": "肠胃病、心脏病、精神病、五官疾病。"
     },
     "延年": {
         "title": "延年磁场",
-        "优点": "有领导力，有责任心，敢于承担，心地善良，长寿。",
-        "缺点": "女性强势，男性大男子主义，固执，缺乏变通。",
-        "事业": "适合主导性、专业能力强的工作，求财平稳。",
-        "健康": "心脏病、精神病、颈椎病、肩周炎等。"
+        "优点": "有领导力，有责任心，心地善良，敢于承担，正义感强，保护弱者，寿命较长。",
+        "缺点": "固执不变通，大男子主义或女性强势，压力大，不易接受意见。",
+        "事业": "主导性强，专业能力佳，劳碌但能当领导。",
+        "健康": "心脏病、精神病、颈椎病、肩周炎、掉发。"
     },
     "伏位": {
         "title": "伏位磁场",
-        "优点": "耐性强、毅力大，具备潜力，善于推理逻辑，顾家。",
-        "缺点": "不善随机应变，固执，处理事情反复琢磨，缺乏安全感。",
-        "事业": "适合慢工细活、研究分析类工作，稳定行业。",
-        "健康": "脑部问题、头痛、失眠、心脏病等。"
+        "优点": "潜力大，耐性毅力强，把握机会，不鸣则已，一鸣惊人，逻辑强，顾家型。",
+        "缺点": "保守固执，缺乏变通，缺乏自信与冒险精神，孤独纠结。",
+        "事业": "研究、分析类行业，偏稳定保守。",
+        "健康": "脑部、失眠、头晕、心脏及隐藏性疾病。"
     },
     "祸害": {
         "title": "祸害磁场",
-        "优点": "口才好，能言善道，八面玲珑，口吐莲花，喜好享受美食，口才带来财富。",
-        "缺点": "直言直语，脾气急躁，气场暴躁，爱顶嘴，有点好强，爱抱怨，做事稍显粗心，感情易过度。",
-        "事业": "讲师、教育、销售、律师、业务员、餐饮、娱乐、表演等行业容易被捧。适合从事与口才相关的工作。",
-        "健康": "车祸、意外、体质差、抗力差、咽喉和口腔呼吸系统疾病。"
+        "优点": "口才好，能说会道，八面玲珑，口福好，靠口才带财。",
+        "缺点": "爱争辩，脾气暴躁，好胜心强，爱指责人，斤斤计较，抱怨多。",
+        "事业": "讲师、教育、销售、律师、业务、娱乐表演；易被骗破财。",
+        "健康": "车祸、意外、体质差、抵抗力差、呼吸疾病。"
     },
     "六煞": {
         "title": "六煞磁场",
-        "优点": "眼光远大，社交能力强，思维细腻，情感丰富，善于沟通，喜欢交往，艺术方面有独特的优势，吸引力强，异性缘佳，初见时给人深刻印象。",
-        "缺点": "心思过于细腻，缺乏坚定的情感，易受他人影响，情绪不稳定，容易冲动。",
-        "事业": "美容、艺术、医疗、服务行业和性别相关行业等；人际关系好但不易留住，因为不适合固定工作。",
-        "健康": "肠胃病、皮肤病、抑郁症、失眠等。"
+        "优点": "聪明变通，社交强，情感丰富，爱美有魅力，异性缘佳，初见好印象。",
+        "缺点": "敏感多疑，优柔寡断，情绪波动，消极抑郁，耳根软，爱传闲话。",
+        "事业": "美容、美发、医美、女性行业，靠人脉得财，守财不易。",
+        "健康": "肠胃病、皮肤病、抑郁症、失眠，严重者癌症。"
     },
     "绝命": {
         "title": "绝命磁场",
-        "优点": "头脑反应快，记忆力好，能赚钱，目标明确，超强的判断力，善良、正义、胆子大，获取财富方面有优势，金钱观念强。",
-        "缺点": "脾气差，中动暴躁，易走极端，不圆滑，心软，耳根子软，易相信朋友，容易与上层领导发生矛盾。",
-        "事业": "不适合上班，适合做自己的行业，房地产、金融、股市等，早九晚五不适合，能赚钱也容易破产。",
-        "健康": "免疫力低，容易得大病，肝肾疾病，积劳成疾，糖尿病等。"
+        "优点": "头脑灵活，记忆好，会赚钱，目标清晰，胆大敢拼，善良正义，金融投资有收获。",
+        "缺点": "冲动暴躁，固执自负，好胜心强，赌性重，易有官司。",
+        "事业": "冒险行业，如股票、房地产、金融、赌博，赚钱快但风险大。",
+        "健康": "免疫力低、大病、肝肾疾病、糖尿病、劳损。"
     },
     "五鬼": {
         "title": "五鬼磁场",
-        "优点": "才华横溢，高智商，想法多，鬼点子多，待人热情，处事果断，对技能掌握有深度，学习能力强，多才多艺，善于创意和战略，做事出其不意。",
-        "缺点": "内心忧郁，喜欢特立独行，偷懒摸索，想法多反复无常，不走正道，久难以提振，不容易被别人看穿，缺乏安全感。",
-        "事业": "宗教事业、企业续校、贸易公司、偏门生意，经营活动时间长常加班工作，容易撞正业，失业，缺乏中心稳定。",
-        "健康": "如肝、肺、肾、老年脑病、心脏病、免疫力低、中风等。"
+        "优点": "才华横溢，聪明多变，学习力强，心机谋略佳，善于出奇制胜。",
+        "缺点": "城府深，特立独行，反复无常，不走正道，不信任他人，爱熬夜。",
+        "事业": "宗教、策划、贸易、偏门生意，工作不稳定。",
+        "健康": "妇科、肺病、心脏病、脑部病、免疫力差、中风。"
     }
 }
 
@@ -346,11 +347,17 @@ def analyze_number_pairs(input_data):
                     original_indices_in_full_number.append(j)
                 current_filtered_index += 1
 
-        has_removed_zero = False
-        has_removed_five = False
+        # Count zeros and fives that affect this pair
+        zero_count = 0
+        five_count = 0
+        
+        # Count 5s between the pair digits (amplify the pair)
         if len(original_indices_in_full_number) >= 2:
-            has_removed_zero = any(idx in removed_zeros for idx in range(original_indices_in_full_number[0] + 1, original_indices_in_full_number[1]))
-            has_removed_five = any(idx in removed_fives for idx in range(original_indices_in_full_number[0] + 1, original_indices_in_full_number[1]))
+            for idx in range(original_indices_in_full_number[0] + 1, original_indices_in_full_number[1]):
+                if idx in removed_zeros:
+                    zero_count += 1
+                if idx in removed_fives:
+                    five_count += 1
 
         if pair in pair_mappings:
             base_type = pair_mappings[pair].split('[')[0]
@@ -380,10 +387,12 @@ def analyze_number_pairs(input_data):
                     right = next_type if next_type else ''
                     definition = f"伏位（{left}→{right}）"
 
-            if has_removed_zero:
+            # Add amplification markers based on 5s
+            if zero_count > 0:
                 definition += '(隐)'
-            if has_removed_five:
-                definition += '(显)'
+            if five_count > 0:
+                # Add "显" for each 5 (amplification)
+                definition += '显' * five_count
 
             pairs.append(definition)
             mapped_only.append(pair_mappings[pair])
@@ -393,19 +402,25 @@ def analyze_number_pairs(input_data):
             try:
                 level = pair_mappings[pair].split('[')[-1].replace(']', '')
                 level_int = int(level)
-                energy_score = max(0, 100 - (level_int - 1) * 25)
+                base_energy_score = max(0, 100 - (level_int - 1) * 25)
+                
+                # Apply amplification based on 5s (20% per 5)
+                amplification_multiplier = 1 + (five_count * 0.2)
+                energy_score = int(base_energy_score * amplification_multiplier)
             except:
                 energy_score = 0
 
             detailed_group_rows.append({
                 'group': base_type,
                 'pair': pair,
-                'energy': f"{energy_score}%"
+                'energy': f"{energy_score}%",
+                'amplification': five_count,
+                'base_energy': base_energy_score if 'base_energy_score' in locals() else 0
             })
         else:
             pairs.append(pair)
 
-    # Frequency stats
+    # Frequency stats - now accounting for amplification
     frequency = dict(Counter(mapped_only))
     total_mapped = sum(frequency.values())
 
@@ -413,20 +428,41 @@ def analyze_number_pairs(input_data):
     group_summary = defaultdict(int)
     energy_score_by_group = defaultdict(list)
 
+    # Create a mapping of pairs to their amplification data
+    pair_amplification = {}
+    for row in detailed_group_rows:
+        pair_amplification[row['pair']] = {
+            'amplification': row['amplification'],
+            'base_energy': row['base_energy']
+        }
+
     for key, count in frequency.items():
         base_type = key.split('[')[0]
         level = key.split('[')[-1].replace(']', '')
 
         try:
             level_int = int(level)
-            energy_score = max(0, 100 - (level_int - 1) * 25)
+            base_energy_score = max(0, 100 - (level_int - 1) * 25)
+            
+            # Calculate average amplification for this pair type
+            total_amplification = 0
+            amplification_count = 0
+            for pair, data in pair_amplification.items():
+                if pair_mappings.get(pair) == key:
+                    total_amplification += data['amplification']
+                    amplification_count += 1
+            
+            avg_amplification = total_amplification / amplification_count if amplification_count > 0 else 0
+            amplification_multiplier = 1 + (avg_amplification * 0.2)
+            energy_score = int(base_energy_score * amplification_multiplier)
         except:
             energy_score = 0
 
         percentage[key] = {
             'count': count,
             'percent': round((count / total_mapped) * 100, 1) if total_mapped > 0 else 0,
-            'energy': f"{energy_score * count}%"
+            'energy': f"{energy_score * count}%",
+            'amplification': avg_amplification if 'avg_amplification' in locals() else 0
         }
 
         group_summary[base_type] += count
@@ -443,6 +479,9 @@ def analyze_number_pairs(input_data):
     for group, values in energy_score_by_group.items():
         grouped_energy_percent[group] = sum(values)
 
+    # Keep original grouped_stats without amplification markers in group names
+    enhanced_grouped_stats = grouped_percentage.copy()
+
     # Ending warning logic
     last_pair = mapped_only[-1] if mapped_only else None
     ending_warning = None
@@ -451,7 +490,7 @@ def analyze_number_pairs(input_data):
         group_name = last_pair.split('[')[0]
         ending_warning = ending_financial_warnings.get(group_name)
 
-    return pairs, percentage, grouped_percentage, grouped_energy_percent, ending_warning, group_to_pairs, detailed_group_rows
+    return pairs, percentage, enhanced_grouped_stats, grouped_energy_percent, ending_warning, group_to_pairs, detailed_group_rows
 
 
 
@@ -531,6 +570,31 @@ def index():
         # Analyze number
         primary_result, pair_stats, grouped_stats, grouped_energy, ending_warning, group_to_pairs, detailed_group_rows = analyze_number_pairs(input_data)
         
+        # Save to history if user is logged in
+        if session.get('user'):
+            user = User.query.filter_by(email=session['user']).first()
+            if user:
+                # Check if this input already exists for this user
+                existing_history = UserHistory.query.filter_by(
+                    user_id=user.id, 
+                    input_data=input_data
+                ).first()
+                
+                if not existing_history:
+                    # Create new history entry
+                    new_history = UserHistory(
+                        user_id=user.id,
+                        input_data=input_data
+                    )
+                    db.session.add(new_history)
+                    
+                    # Keep only the last 10 entries per user
+                    user_histories = UserHistory.query.filter_by(user_id=user.id).order_by(UserHistory.created_at.desc()).all()
+                    if len(user_histories) > 10:
+                        for old_history in user_histories[10:]:
+                            db.session.delete(old_history)
+                    
+                    db.session.commit()
 
         # If logged in and PRO, show advanced features
         if session.get('user') and session.get('is_pro'):
@@ -547,6 +611,14 @@ def index():
 
             detailed_group_rows=detailed_group_rows if input_data else [],
 
+    # Get recent numbers for logged-in users
+    recent_numbers = []
+    if session.get('user'):
+        user = User.query.filter_by(email=session['user']).first()
+        if user:
+            recent_histories = UserHistory.query.filter_by(user_id=user.id).order_by(UserHistory.created_at.desc()).limit(10).all()
+            recent_numbers = [history.input_data for history in recent_histories]
+
     return render_template('index.html',
                            input_data=input_data,
                            primary_result=primary_result,
@@ -560,6 +632,7 @@ def index():
                            group_to_pairs=group_to_pairs if input_data else {},
                            detailed_group_rows=detailed_group_rows if input_data else [],
                            grouped_stats_json=grouped_stats,
+                           recent_numbers=recent_numbers,
                            is_pro=session.get('is_pro', False),
                            user=session.get('user'))
 
@@ -571,17 +644,15 @@ def register():
     if request.method == 'GET':
         return render_template('register.html')
 
-    email = password = user_type = None  # ✅ always declared
+    email = password = None  # ✅ always declared
 
     if request.is_json:
         data = request.get_json()
         email = data.get('email')
         password = data.get('password')
-        user_type = data.get('user_type', 'free')
     else:
         email = request.form.get('email')
         password = request.form.get('password')
-        user_type = request.form.get('user_type', 'free')
 
     if not email or not password:
         if request.is_json:
@@ -599,12 +670,12 @@ def register():
 
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
-    new_user = User(email=email, password_hash=hashed_password, user_type=user_type)
+    new_user = User(email=email, password=hashed_password)
     db.session.add(new_user)
     db.session.commit()
 
     if request.is_json:
-        return jsonify({'message': 'User registered successfully', 'user_type': new_user.user_type}), 201
+        return jsonify({'message': 'User registered successfully', 'is_pro': new_user.is_pro}), 201
     else:
         flash("注册成功，请登录", "success")
         return redirect(url_for('login'))
@@ -616,11 +687,11 @@ def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        user = users.get(email)
+        user = User.query.filter_by(email=email).first()
 
-        if user and check_password_hash(user['password'], password):
+        if user and bcrypt.check_password_hash(user.password, password):
             session['user'] = email
-            session['is_pro'] = user.get('is_pro', False)  # ✅ set correctly here
+            session['is_pro'] = user.is_pro  # ✅ set correctly here
             return redirect(url_for('index'))
         else:
             flash("登录失败，请检查邮箱或密码", "error")
@@ -631,18 +702,81 @@ def login():
 @app.route('/logout')
 def logout():
     session.pop('user', None)
-    flash("已登出", "info")
+    session.pop('is_pro', None)
+    flash("已登出，请先登录以使用分析功能", "error")
+    return redirect(url_for('login'))
+
+@app.route('/clear_history', methods=['POST'])
+def clear_history():
+    if session.get('user'):
+        user = User.query.filter_by(email=session['user']).first()
+        if user:
+            UserHistory.query.filter_by(user_id=user.id).delete()
+            db.session.commit()
+            flash("历史记录已清除", "success")
+    return redirect(url_for('index'))
+
+@app.route('/create_pro_account', methods=['GET', 'POST'])
+def create_pro_account():
+    """Create a pro account for testing purposes"""
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        if not email or not password:
+            flash("请输入邮箱和密码", "error")
+            return render_template('create_pro.html')
+        
+        # Check if user already exists
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            flash("用户已存在", "error")
+            return render_template('create_pro.html')
+        
+        # Create new pro user
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        new_user = User(
+            email=email, 
+            password=hashed_password, 
+            is_pro=True
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash(f"Pro账户 {email} 创建成功！", "success")
+        return redirect(url_for('login'))
+    
+    return render_template('create_pro.html')
+
+@app.route('/upgrade_to_pro', methods=['POST'])
+def upgrade_to_pro():
+    """Upgrade an existing account to pro"""
+    if session.get('user'):
+        user = User.query.filter_by(email=session['user']).first()
+        if user:
+            user.is_pro = True
+            db.session.commit()
+            session['is_pro'] = True
+            flash("账户已升级为Pro版本！", "success")
+        else:
+            flash("用户不存在", "error")
+    else:
+        flash("请先登录", "error")
     return redirect(url_for('index'))
 
 @app.route('/pricing')
 def pricing():
     return render_template('pricing.html')
 
+@app.route('/contact')
+def contact():
+    return render_template('contact.html')
+
 """ @app.route('/upgrade')
 def upgrade():
     if session.get('user'):
         users[session['user']]['is_pro'] = True
-        flash("您已升级为专业版用户！", "success")
+        flash("您已升级为大师版用户！", "success")
     return redirect(url_for('index')) """
 
 @app.route('/upgrade/<int:user_id>', methods=['POST'])
@@ -652,9 +786,9 @@ def upgrade(user_id):
         return jsonify({'message': 'User not found'}), 404
 
     session['is_pro'] = True
-    flash("您已成功订阅高级版！", "success")
+    flash("您已成功订阅大师版！", "success")
 
-    user.user_type = 'paid'
+    user.is_pro = True
     db.session.commit()
 
     return jsonify({'message': f'User {user.email} upgraded to paid'}), 200
@@ -697,8 +831,8 @@ def pay():
                 'currency': 'myr',
                 'unit_amount': 1390,  # RM13.90 = 990 sen
                 'product_data': {
-                    'name': '升级为专业版',
-                    'description': '解锁高级分析功能'
+                    'name': '升级为大师版',
+                    'description': '解锁大师分析功能'
                 },
             },
             'quantity': 1,

@@ -1,64 +1,25 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-  <meta charset="UTF-8">
-  <title>命理分析工具</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% extends "base.html" %}
+{% block title %}命理分析工具{% endblock %}
 
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            dark: '#111827',
-            surface: '#1F2937',
-            highlight: '#3B82F6',
-            textlight: '#E5E7EB',
-            soft: '#4B5563',
-          },
-          fontFamily: {
-            sans: ['Noto Sans SC', 'sans-serif']
-          }
-        }
-      }
-    }
-  </script>
-</head>
-
-<body class="bg-dark text-textlight font-sans min-h-screen py-10 px-4">
-
-<div class="max-w-2xl mx-auto">
-
-  <!-- 🌐 Navigation Bar -->
-  <header class="w-full max-w-6xl mx-auto flex items-center justify-between px-4 py-4 bg-surface rounded-xl mb-6 shadow">
-    <div class="flex items-center space-x-3">
-      <img src="/static/EVER green3.png" alt="Logo" class="h-10 w-10 rounded-full border border-highlight">
-      <span class="text-xl font-bold text-highlight">命理工具</span>
-    </div>
-
-    <nav class="space-x-6 text-textlight text-base">
-      <a href="/pricing" class="hover:text-highlight transition">购买</a>
-      {% if session.get('user') %}
-      <a href="/logout" class="hover:text-highlight transition">登出</a>
-      {% else %}
-      <a href="/login" class="hover:text-highlight transition">登录</a>
-      {% endif %}
-    </nav>
-  </header>
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- ❗ Show Upgrade Banner if not PRO -->
   {% if not session.get('is_pro', False) %}
   <div class="bg-surface p-5 rounded-xl shadow text-yellow-400 mb-6">
-    要查看更多辅助分析？<a href="/pricing" class="text-blue-400 underline">升级为专业版</a>！
+    <div class="flex items-center justify-between">
+      <span>要查看更多辅助分析？<a href="/pricing" class="text-blue-400 underline">升级为大师版</a>！</span>
+      <form method="POST" action="/upgrade_to_pro" class="inline">
+        <button type="submit" class="ml-4 bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">
+          测试升级Pro
+        </button>
+      </form>
+    </div>
   </div>
   {% endif %}
   
 
-  <h1 class="text-3xl font-bold text-textlight mb-6 text-center">✨数字能量分析✨</h1>
+  <h1 class="text-3xl font-bold text-textlight mb-6 text-center">✨奇门数字分析✨</h1>
 
   <!-- 📝 Input Form -->
   <form method="POST" class="bg-surface p-6 rounded-xl shadow-lg space-y-4 mb-10">
@@ -70,6 +31,35 @@
       分析
     </button>
   </form>
+
+  <!-- 📚 Recent Numbers Section -->
+  {% if session.get('user') %}
+  <div class="bg-surface p-4 rounded-xl shadow mb-6">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-lg font-semibold text-highlight">📚 最近输入的数字</h3>
+      {% if recent_numbers %}
+      <form method="POST" action="/clear_history" class="inline">
+        <button type="submit" class="text-sm text-soft hover:text-highlight transition" onclick="return confirm('确定要清除所有历史记录吗？')">
+          清除历史
+        </button>
+      </form>
+      {% endif %}
+    </div>
+    
+    {% if recent_numbers %}
+    <div class="flex flex-wrap gap-2">
+      {% for number in recent_numbers %}
+      <button onclick="fillInput('{{ number }}')" 
+              class="px-3 py-1 bg-dark border border-soft rounded-full text-sm hover:bg-highlight hover:text-white transition">
+        {{ number }}
+      </button>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-soft text-sm">暂无历史记录</p>
+    {% endif %}
+  </div>
+  {% endif %}
 
   {% if input_data %}
   <div class="space-y-6">
@@ -98,7 +88,19 @@
             <tr class="bg-surface hover:bg-gray-700">
               <td class="px-4 py-2 border-b border-gray-700">{{ key }}</td>
               <td class="px-4 py-2 border-b border-gray-700">{{ group_to_pairs[key] | join(', ') }}</td>
-              <td class="px-4 py-2 border-b border-gray-700">{{ grouped_energy[key] if grouped_energy[key] else 0 }}%</td>
+              <td class="px-4 py-2 border-b border-gray-700">
+                {% set energy_value = grouped_energy[key] if grouped_energy[key] else 0 %}
+                {% set amplification_count = 0 %}
+                {% for row in detailed_group_rows %}
+                  {% if row.group == key %}
+                    {% set amplification_count = amplification_count + row.amplification %}
+                  {% endif %}
+                {% endfor %}
+                {{ energy_value }}%
+                {% if amplification_count > 0 %}
+                  <span class="text-yellow-400">显</span>{% for i in range(amplification_count - 1) %}<span class="text-yellow-400">显</span>{% endfor %}
+                {% endif %}
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -160,7 +162,7 @@
     </div>
     {% endif %}
 
-    <!-- 📚 高级分析（仅PRO用户） -->
+    <!-- 📚 大师分析（仅PRO用户） -->
     {% if is_pro %}
       {% if secondary_result %}
       <div class="bg-surface p-5 rounded-xl shadow">
@@ -183,12 +185,55 @@
         </ul>
       </div>
       {% endif %}
+
+      <!-- 📖 详细磁场分析 -->
+      {% if sorted_profiles and is_pro %}
+      <div class="bg-surface p-5 rounded-xl shadow">
+        <h2 class="text-xl font-bold text-purple-400 mb-4">📖 详细磁场分析</h2>
+        <div class="space-y-6">
+          {% for group, description, percent in sorted_profiles %}
+          <div class="border border-gray-600 rounded-lg p-4">
+            <h3 class="text-lg font-bold text-highlight mb-3">{{ description.title }} ({{ percent }}%)</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="space-y-3">
+                <div>
+                  <h4 class="font-semibold text-green-400 mb-1">✅ 优点：</h4>
+                  <p class="text-textlight text-sm">{{ description.优点 }}</p>
+                </div>
+                <div>
+                  <h4 class="font-semibold text-blue-400 mb-1">💼 事业：</h4>
+                  <p class="text-textlight text-sm">{{ description.事业 }}</p>
+                </div>
+              </div>
+              
+              <div class="space-y-3">
+                <div>
+                  <h4 class="font-semibold text-red-400 mb-1">❌ 缺点：</h4>
+                  <p class="text-textlight text-sm">{{ description.缺点 }}</p>
+                </div>
+                <div>
+                  <h4 class="font-semibold text-yellow-400 mb-1">🏥 健康：</h4>
+                  <p class="text-textlight text-sm">{{ description.健康 }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
     {% endif %}
 
   </div>
   {% endif %}
 
-</div>
+<script>
+function fillInput(number) {
+  document.getElementById('input_data').value = number;
+  // Optional: Auto-submit the form
+  // document.querySelector('form').submit();
+}
+</script>
 
-</body>
-</html>
+{% endblock %}

@@ -38,12 +38,15 @@
                 <span class="text-xl font-bold text-highlight">命理工具</span>
                 {% if session.get('is_pro') %}
                     <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">PRO</span>
+                {% elif session.get('user') %}
+                    <span class="ml-2 bg-gray-600 text-white text-xs px-2 py-1 rounded">Free</span>
                 {% endif %}
             </div>
 
             <nav class="space-x-6 text-textlight text-base">
                 <a href="/" class="hover:text-highlight transition">主页</a>
                 <a href="/pricing" class="hover:text-highlight transition">购买</a>
+                <a href="/contact" class="hover:text-highlight transition">联系我们</a>
                 {% if session.get('user') %}
                     <a href="/logout" class="hover:text-highlight transition">登出</a>
                 {% else %}
@@ -56,7 +59,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="mb-4 p-3 rounded {{ 'bg-green-600' if category == 'success' else 'bg-red-600' }}">
+              <div class="mb-4 p-3 rounded bg-surface border border-soft {{ 'text-green-400' if category == 'success' else 'text-orange-600' }}">
                 {{ message }}
               </div>
             {% endfor %}
