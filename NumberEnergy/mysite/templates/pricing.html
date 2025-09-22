@@ -1,52 +1,285 @@
 {% extends "base.html" %}
-{% block title %}定价方案{% endblock %}
+{% block title %}{{ t('pricing_title') }}{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto text-center py-10 px-4">
+<div class="max-w-6xl mx-auto py-10 px-4">
 
-  <h1 class="text-3xl font-bold mb-6 text-blue-400">选择适合你的计划</h1>
-  <p class="mb-10 text-gray-300 text-sm">
-    新用户可免费试用 30 天！推荐好友可额外获得 3 个月奖励。
-  </p>
+  <div class="text-center mb-12">
+    <h1 class="text-4xl font-bold mb-4 text-blue-400">{{ t('pricing_title') }}</h1>
+    <p class="text-gray-300 text-lg mb-6">
+      {{ t('pricing_subtitle') }}
+    </p>
+    <div class="bg-green-600 text-white px-6 py-3 rounded-lg inline-block">
+      <span class="font-semibold">🎉 {{ t('special_offer') }}</span> {{ t('new_user_trial') }}
+    </div>
+  </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+  <!-- Pricing Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
 
     <!-- 🟩 Free Plan -->
-    <div class="bg-gray-800 p-6 rounded-xl shadow {% if not is_pro %}border border-green-400{% endif %}">
-      <h2 class="text-xl font-semibold text-blue-300 mb-2">基础版</h2>
-      <p class="mb-4 text-gray-300">基础分析功能</p>
-      <p class="text-2xl font-bold mb-4">免费</p>
-      {% if not session.get('user') %}
-        <a href="/register" class="block mt-4 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-center">
-          免费注册
-        </a>
-      {% elif not is_pro %}
-        <span class="inline-block mt-4 text-green-400 font-semibold">当前已使用</span>
-      {% endif %}
+    <div class="bg-gray-800 p-8 rounded-xl shadow-lg {% if not is_pro %}border-2 border-green-400{% else %}border border-soft{% endif %} relative">
+      {% if not is_pro %}<div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-green-400 text-white px-4 py-1 rounded-full text-sm font-semibold">{{ t('current_plan') }}</div>{% endif %}
+      <div class="text-center">
+        <h2 class="text-2xl font-bold text-green-400 mb-2">{{ t('free_plan') }}</h2>
+        <p class="text-gray-300 mb-6">{{ t('perfect_for_starting') }}</p>
+        <div class="mb-6">
+          <span class="text-4xl font-bold text-white">{{ t('free_forever').split(' /')[0] }}</span>
+          <span class="text-gray-400">{{ t('free_forever').split(' /')[1] if ' /' in t('free_forever') else '/ forever' }}</span>
+        </div>
+        
+        <div class="text-left mb-8 space-y-3">
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_basic_analysis') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_energy_charts') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_history') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_mobile') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_support') }}</span>
+          </div>
+        </div>
+
+        {% if not session.get('user') %}
+          <a href="/register" class="block w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+            {{ t('get_started_free') }}
+          </a>
+        {% elif not is_pro %}
+          <span class="inline-block w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold text-center">
+            {{ t('currently_using') }}
+          </span>
+        {% endif %}
+      </div>
     </div>
 
     <!-- 🟦 Monthly Plan -->
-    <div class="bg-gray-800 p-6 rounded-xl shadow border border-blue-400">
-      <h2 class="text-xl font-semibold text-blue-300 mb-2">大师版 - 月付</h2>
-      <p class="mb-2 text-gray-300">解锁所有大师功能</p>
-      <p class="mb-2 text-green-400 text-sm">节省 <strong>RM5</strong>，原价 <strong>RM14.90</strong></p>
-      <p class="text-2xl font-bold mb-4">RM9.90 / 月</p>
-      <a href="/subscribe/monthly" class="block mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-center">
-        立即订阅
-      </a>
+    <div class="bg-gray-800 p-8 rounded-xl shadow-lg border-2 border-blue-400 relative">
+      <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-400 text-white px-4 py-1 rounded-full text-sm font-semibold">{{ t('most_popular') }}</div>
+      <div class="text-center">
+        <h2 class="text-2xl font-bold text-blue-400 mb-2">{{ t('master_monthly') }}</h2>
+        <p class="text-gray-300 mb-6">{{ t('unlock_all_features') }}</p>
+        <div class="mb-6">
+          <span class="text-4xl font-bold text-white">RM13.90</span>
+          <span class="text-gray-400">{{ t('per_month') }}</span>
+          <div class="text-sm text-green-400 mt-1">{{ t('save_percentage').format(percentage='30%', original='RM19.90') }}</div>
+        </div>
+        
+        <div class="text-left mb-8 space-y-3">
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('free_plan') }} {{ t('feature_basic_analysis') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_advanced_analysis') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_secondary_insights') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_special_warnings') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_personality') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_career_health') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_recommendations') }}</span>
+          </div>
+        </div>
+
+        <a href="/subscribe/monthly" class="block w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+          {{ t('start_monthly') }}
+        </a>
+      </div>
     </div>
 
     <!-- 💎 Annual Plan -->
-    <div class="bg-gray-800 p-6 rounded-xl shadow border border-yellow-500">
-      <h2 class="text-xl font-semibold text-yellow-300 mb-2">大师版 - 年付</h2>
-      <p class="mb-2 text-gray-300">解锁所有大师功能</p>
-      <p class="mb-2 text-green-400 text-sm">节省 <strong>RM20.80</strong>，相当于 <strong>2 个月免费</strong></p>
-      <p class="text-2xl font-bold mb-4">RM99 / 年</p>
-      <a href="/subscribe/annual" class="block mt-4 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md text-center">
-        立即订阅
-      </a>
+    <div class="bg-gray-800 p-8 rounded-xl shadow-lg border-2 border-yellow-400 relative">
+      <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-black px-4 py-1 rounded-full text-sm font-semibold">{{ t('best_value') }}</div>
+      <div class="text-center">
+        <h2 class="text-2xl font-bold text-yellow-400 mb-2">{{ t('master_annual') }}</h2>
+        <p class="text-gray-300 mb-6">{{ t('maximum_savings') }}</p>
+        <div class="mb-6">
+          <span class="text-4xl font-bold text-white">RM119</span>
+          <span class="text-gray-400">{{ t('per_year') }}</span>
+          <div class="text-sm text-green-400 mt-1">{{ t('save_percentage').format(percentage='50%', original='RM239') }}</div>
+        </div>
+        
+        <div class="text-left mb-8 space-y-3">
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('master_monthly') }} {{ t('feature_basic_analysis') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_priority_support') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_early_access') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_extended_history') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_export') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_exclusive_reports') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_guarantee') }}</span>
+          </div>
+        </div>
+
+        <a href="/subscribe/annual" class="block w-full bg-yellow-500 hover:bg-yellow-600 text-black px-6 py-3 rounded-lg font-semibold transition-colors">
+          {{ t('start_annual') }}
+        </a>
+      </div>
     </div>
 
   </div>
+
+  <!-- Feature Comparison Table -->
+  <div class="bg-surface rounded-xl shadow-lg overflow-hidden mb-8">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead class="bg-dark">
+          <tr>
+            <th class="px-6 py-4 text-left text-highlight font-semibold">{{ t('feature_comparison') }}</th>
+            <th class="px-6 py-4 text-center text-green-400 font-semibold">{{ t('free_plan') }}</th>
+            <th class="px-6 py-4 text-center text-blue-400 font-semibold">{{ t('master_monthly') }}</th>
+            <th class="px-6 py-4 text-center text-yellow-400 font-semibold">{{ t('master_annual') }}</th>
+          </tr>
+        </thead>
+        <tbody class="text-sm">
+          <!-- Basic Analysis -->
+          <tr class="border-b border-soft">
+            <td class="px-6 py-4 font-medium text-textlight">🔍 {{ t('feature_basic_analysis') }}</td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+          </tr>
+          <tr class="border-b border-soft">
+            <td class="px-6 py-4 font-medium text-textlight">📊 {{ t('feature_energy_charts') }}</td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+          </tr>
+          <tr class="border-b border-soft">
+            <td class="px-6 py-4 font-medium text-textlight">📚 {{ t('feature_history') }}</td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+          </tr>
+          
+          <!-- Master Features -->
+          <tr class="border-b border-soft bg-gray-800">
+            <td class="px-6 py-4 font-medium text-textlight">🔮 {{ t('feature_advanced_analysis') }}</td>
+            <td class="px-6 py-4 text-center"><span class="text-red-400">✗</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+          </tr>
+          <tr class="border-b border-soft bg-gray-800">
+            <td class="px-6 py-4 font-medium text-textlight">💎 {{ t('feature_secondary_insights') }}</td>
+            <td class="px-6 py-4 text-center"><span class="text-red-400">✗</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+          </tr>
+          <tr class="border-b border-soft bg-gray-800">
+            <td class="px-6 py-4 font-medium text-textlight">⚠️ {{ t('feature_special_warnings') }}</td>
+            <td class="px-6 py-4 text-center"><span class="text-red-400">✗</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+          </tr>
+          <tr class="border-b border-soft bg-gray-800">
+            <td class="px-6 py-4 font-medium text-textlight">📖 {{ t('feature_personality') }}</td>
+            <td class="px-6 py-4 text-center"><span class="text-red-400">✗</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+          </tr>
+          <tr class="border-b border-soft bg-gray-800">
+            <td class="px-6 py-4 font-medium text-textlight">💼 {{ t('feature_career_health') }}</td>
+            <td class="px-6 py-4 text-center"><span class="text-red-400">✗</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+          </tr>
+          <tr class="border-b border-soft bg-gray-800">
+            <td class="px-6 py-4 font-medium text-textlight">🎯 {{ t('feature_recommendations') }}</td>
+            <td class="px-6 py-4 text-center"><span class="text-red-400">✗</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+          </tr>
+          
+          <!-- Support & Limits -->
+          <tr class="border-b border-soft">
+            <td class="px-6 py-4 font-medium text-textlight">📞 {{ t('feature_support') }}</td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+          </tr>
+          <tr class="border-b border-soft">
+            <td class="px-6 py-4 font-medium text-textlight">📱 {{ t('feature_mobile') }}</td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+          </tr>
+          <tr class="border-b border-soft">
+            <td class="px-6 py-4 font-medium text-textlight">🔄 {{ t('feature_unlimited') }}</td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FAQ Section -->
+  <div class="mt-16 bg-surface rounded-xl p-8">
+    <h3 class="text-2xl font-bold text-blue-400 mb-6 text-center">{{ t('faq_title') }}</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <h4 class="font-semibold text-highlight mb-2">{{ t('faq_difference') }}</h4>
+        <p class="text-gray-300 text-sm">{{ t('faq_difference_answer') }}</p>
+      </div>
+      <div>
+        <h4 class="font-semibold text-highlight mb-2">{{ t('faq_upgrade_downgrade') }}</h4>
+        <p class="text-gray-300 text-sm">{{ t('faq_upgrade_downgrade_answer') }}</p>
+      </div>
+      <div>
+        <h4 class="font-semibold text-highlight mb-2">{{ t('faq_trial') }}</h4>
+        <p class="text-gray-300 text-sm">{{ t('faq_trial_answer') }}</p>
+      </div>
+      <div>
+        <h4 class="font-semibold text-highlight mb-2">{{ t('faq_payment') }}</h4>
+        <p class="text-gray-300 text-sm">{{ t('faq_payment_answer') }}</p>
+      </div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}

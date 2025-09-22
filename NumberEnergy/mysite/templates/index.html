@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}命理分析工具{% endblock %}
+{% block title %}{{ t('app_title') }}{% endblock %}
 
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -8,10 +8,10 @@
   {% if not session.get('is_pro', False) %}
   <div class="bg-surface p-5 rounded-xl shadow text-yellow-400 mb-6">
     <div class="flex items-center justify-between">
-      <span>要查看更多辅助分析？<a href="/pricing" class="text-blue-400 underline">升级为大师版</a>！</span>
+      <span>{{ t('upgrade_banner')|safe }}</span>
       <form method="POST" action="/upgrade_to_pro" class="inline">
         <button type="submit" class="ml-4 bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">
-          测试升级Pro
+          {{ t('btn_test_upgrade') }}
         </button>
       </form>
     </div>
@@ -19,16 +19,17 @@
   {% endif %}
   
 
-  <h1 class="text-3xl font-bold text-textlight mb-6 text-center">✨奇门数字分析✨</h1>
+  <h1 class="text-3xl font-bold text-textlight mb-6 text-center">{{ t('main_title') }}</h1>
 
   <!-- 📝 Input Form -->
   <form method="POST" class="bg-surface p-6 rounded-xl shadow-lg space-y-4 mb-10">
-    <label for="input_data" class="block text-lg text-textlight font-semibold">请输入您的车牌、电话号码、或任何英文、数字：</label>
+    <label for="input_data" class="block text-lg text-textlight font-semibold">{{ t('input_label') }}</label>
     <input type="text" id="input_data" name="input_data" required
-           class="w-full px-4 py-2 rounded-md bg-dark border border-soft text-textlight focus:ring-2 focus:ring-highlight outline-none" />
+           class="w-full px-4 py-2 rounded-md bg-dark border border-soft text-textlight focus:ring-2 focus:ring-highlight outline-none" 
+           placeholder="{{ t('input_placeholder') }}" />
     <button type="submit"
             class="w-full bg-highlight hover:bg-blue-700 text-white font-semibold py-2 rounded-md transition-all">
-      分析
+      {{ t('btn_analyze') }}
     </button>
   </form>
 
@@ -36,11 +37,11 @@
   {% if session.get('user') %}
   <div class="bg-surface p-4 rounded-xl shadow mb-6">
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-lg font-semibold text-highlight">📚 最近输入的数字</h3>
+      <h3 class="text-lg font-semibold text-highlight">📚 {{ t('recent_numbers') }}</h3>
       {% if recent_numbers %}
       <form method="POST" action="/clear_history" class="inline">
-        <button type="submit" class="text-sm text-soft hover:text-highlight transition" onclick="return confirm('确定要清除所有历史记录吗？')">
-          清除历史
+        <button type="submit" class="text-sm text-soft hover:text-highlight transition" onclick="return confirm('{{ t('confirm_clear_history') }}')">
+          {{ t('btn_clear_history') }}
         </button>
       </form>
       {% endif %}
@@ -56,7 +57,7 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="text-soft text-sm">暂无历史记录</p>
+    <p class="text-soft text-sm">{{ t('no_history') }}</p>
     {% endif %}
   </div>
   {% endif %}
@@ -66,21 +67,21 @@
 
     <!-- 📋 用户输入 -->
     <div class="bg-surface p-5 rounded-xl shadow">
-      <h2 class="text-xl font-bold text-highlight mb-2">🧾 您的输入内容：</h2>
+      <h2 class="text-xl font-bold text-highlight mb-2">🧾 {{ t('your_input') }}</h2>
       <p class="text-textlight text-lg">{{ input_data }}</p>
     </div>
 
     <!-- 🔍 主分析 -->
     <div class="bg-surface p-5 rounded-xl shadow">
-      <h2 class="text-xl font-bold text-highlight mb-2">🔍 组合能量分析：</h2>
+      <h2 class="text-xl font-bold text-highlight mb-2">🔍 {{ t('energy_analysis') }}</h2>
 
       <div class="overflow-x-auto">
         <table class="min-w-full text-sm text-left border border-gray-700 rounded overflow-hidden">
           <thead class="bg-gray-800 text-textlight">
             <tr>
-              <th class="px-4 py-2 border-b border-gray-600">组合类型</th>
-              <th class="px-4 py-2 border-b border-gray-600">数字组合</th>
-              <th class="px-4 py-2 border-b border-gray-600">累计能量</th>
+              <th class="px-4 py-2 border-b border-gray-600">{{ t('combination_type') }}</th>
+              <th class="px-4 py-2 border-b border-gray-600">{{ t('number_combination') }}</th>
+              <th class="px-4 py-2 border-b border-gray-600">{{ t('total_energy') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -110,7 +111,7 @@
 
     <!-- 📈 分布图 -->
     <div class="bg-surface p-5 rounded-xl shadow">
-      <h2 class="text-xl font-bold text-highlight mb-2">📈 组合类型分布图</h2>
+      <h2 class="text-xl font-bold text-highlight mb-2">📈 {{ t('distribution_chart') }}</h2>
       <canvas id="groupedBarChart" height="120"></canvas>
     </div>
 

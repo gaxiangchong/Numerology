@@ -3,8 +3,28 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}命理分析工具{% endblock %}</title>
+    <title>{% block title %}{{ t('app_title') }}{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Advanced numerology analysis with energy charts and personalized insights">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Numerology">
+    <meta name="msapplication-TileColor" content="#3b82f6">
+    <meta name="msapplication-config" content="/static/browserconfig.xml">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/static/manifest.json">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/icon-192x192.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-72x72.png">
 
     <!-- Fonts & Tailwind -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
@@ -35,25 +55,73 @@
         <header class="flex items-center justify-between px-4 py-4 bg-surface rounded-xl mb-6 shadow">
             <div class="flex items-center space-x-3">
                 <img src="/static/EVER green3.png" alt="Logo" class="h-10 w-10 rounded-full border border-highlight">
-                <span class="text-xl font-bold text-highlight">命理工具</span>
+                <span class="text-xl font-bold text-highlight">{{ t('logo_text') }}</span>
                 {% if session.get('is_pro') %}
-                    <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">PRO</span>
+                    <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">{{ t('pro_badge') }}</span>
                 {% elif session.get('user') %}
-                    <span class="ml-2 bg-gray-600 text-white text-xs px-2 py-1 rounded">Free</span>
+                    <span class="ml-2 bg-gray-600 text-white text-xs px-2 py-1 rounded">{{ t('free_badge') }}</span>
                 {% endif %}
             </div>
 
-            <nav class="space-x-6 text-textlight text-base">
-                <a href="/" class="hover:text-highlight transition">主页</a>
-                <a href="/pricing" class="hover:text-highlight transition">购买</a>
-                <a href="/contact" class="hover:text-highlight transition">联系我们</a>
+            <!-- Desktop Navigation -->
+            <nav class="hidden md:flex items-center space-x-6 text-textlight text-base">
+                <a href="/" class="hover:text-highlight transition">{{ t('nav_home') }}</a>
+                <a href="/pricing" class="hover:text-highlight transition">{{ t('nav_pricing') }}</a>
+                <a href="/contact" class="hover:text-highlight transition">{{ t('nav_contact') }}</a>
                 {% if session.get('user') %}
-                    <a href="/logout" class="hover:text-highlight transition">登出</a>
+                    <a href="/logout" class="hover:text-highlight transition">{{ t('nav_logout') }}</a>
                 {% else %}
-                    <a href="/login" class="hover:text-highlight transition">登录</a>
+                    <a href="/login" class="hover:text-highlight transition">{{ t('nav_login') }}</a>
                 {% endif %}
+                
+                <!-- PWA Install Button -->
+                <button id="install-button" class="hidden bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition" onclick="showInstallPrompt()">
+                    📱 Install App
+                </button>
+                
+                <!-- Language Switcher -->
+                <div class="flex items-center space-x-2 ml-4">
+                    <a href="/set_language/en" class="text-xs px-2 py-1 rounded {{ 'bg-highlight text-white' if current_language == 'en' else 'hover:bg-dark' }} transition">
+                        EN
+                    </a>
+                    <a href="/set_language/zh" class="text-xs px-2 py-1 rounded {{ 'bg-highlight text-white' if current_language == 'zh' else 'hover:bg-dark' }} transition">
+                        中文
+                    </a>
+                </div>
             </nav>
+
+            <!-- Mobile Menu Button -->
+            <button id="mobile-menu-button" class="md:hidden flex flex-col items-center justify-center w-8 h-8 space-y-1">
+                <span class="block w-6 h-0.5 bg-textlight transition-all duration-300"></span>
+                <span class="block w-6 h-0.5 bg-textlight transition-all duration-300"></span>
+                <span class="block w-6 h-0.5 bg-textlight transition-all duration-300"></span>
+            </button>
         </header>
+
+        <!-- Mobile Navigation Menu -->
+        <div id="mobile-menu" class="md:hidden hidden bg-surface rounded-xl mb-6 shadow-lg overflow-hidden">
+            <nav class="flex flex-col space-y-1 p-4">
+                <a href="/" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg">{{ t('nav_home') }}</a>
+                <a href="/pricing" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg">{{ t('nav_pricing') }}</a>
+                <a href="/contact" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg">{{ t('nav_contact') }}</a>
+                {% if session.get('user') %}
+                    <a href="/logout" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg">{{ t('nav_logout') }}</a>
+                {% else %}
+                    <a href="/login" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg">{{ t('nav_login') }}</a>
+                {% endif %}
+                
+                <!-- Mobile Language Switcher -->
+                <div class="flex items-center justify-center space-x-2 px-4 py-3 border-t border-soft">
+                    <span class="text-sm text-gray-400">Language:</span>
+                    <a href="/set_language/en" class="text-xs px-3 py-1 rounded {{ 'bg-highlight text-white' if current_language == 'en' else 'bg-dark hover:bg-gray-700' }} transition">
+                        EN
+                    </a>
+                    <a href="/set_language/zh" class="text-xs px-3 py-1 rounded {{ 'bg-highlight text-white' if current_language == 'zh' else 'bg-dark hover:bg-gray-700' }} transition">
+                        中文
+                    </a>
+                </div>
+            </nav>
+        </div>
 
         <!-- Main Page Content -->
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -68,6 +136,130 @@
 
         {% block content %}{% endblock %}
     </div>
+
+    <!-- Mobile Menu JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const menuLines = mobileMenuButton.querySelectorAll('span');
+
+            mobileMenuButton.addEventListener('click', function() {
+                mobileMenu.classList.toggle('hidden');
+                
+                // Animate hamburger menu
+                if (mobileMenu.classList.contains('hidden')) {
+                    // Close animation
+                    menuLines[0].style.transform = 'rotate(0deg) translateY(0)';
+                    menuLines[1].style.opacity = '1';
+                    menuLines[2].style.transform = 'rotate(0deg) translateY(0)';
+                } else {
+                    // Open animation (X shape)
+                    menuLines[0].style.transform = 'rotate(45deg) translateY(6px)';
+                    menuLines[1].style.opacity = '0';
+                    menuLines[2].style.transform = 'rotate(-45deg) translateY(-6px)';
+                }
+            });
+
+            // Close menu when clicking on a link
+            const mobileNavLinks = mobileMenu.querySelectorAll('a');
+            mobileNavLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    mobileMenu.classList.add('hidden');
+                    // Reset hamburger menu
+                    menuLines[0].style.transform = 'rotate(0deg) translateY(0)';
+                    menuLines[1].style.opacity = '1';
+                    menuLines[2].style.transform = 'rotate(0deg) translateY(0)';
+                });
+            });
+
+            // Close menu when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!mobileMenuButton.contains(event.target) && !mobileMenu.contains(event.target)) {
+                    mobileMenu.classList.add('hidden');
+                    // Reset hamburger menu
+                    menuLines[0].style.transform = 'rotate(0deg) translateY(0)';
+                    menuLines[1].style.opacity = '1';
+                    menuLines[2].style.transform = 'rotate(0deg) translateY(0)';
+                }
+            });
+        });
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        const installButton = document.getElementById('install-button');
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('PWA: Install prompt triggered');
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Show install button if it exists
+            if (installButton) {
+                installButton.style.display = 'block';
+                installButton.addEventListener('click', () => {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then((choiceResult) => {
+                        if (choiceResult.outcome === 'accepted') {
+                            console.log('PWA: User accepted the install prompt');
+                        } else {
+                            console.log('PWA: User dismissed the install prompt');
+                        }
+                        deferredPrompt = null;
+                        installButton.style.display = 'none';
+                    });
+                });
+            }
+        });
+
+        window.addEventListener('appinstalled', (evt) => {
+            console.log('PWA: App was installed');
+            if (installButton) {
+                installButton.style.display = 'none';
+            }
+        });
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js')
+                    .then((registration) => {
+                        console.log('PWA: Service Worker registered successfully:', registration.scope);
+                        
+                        // Check for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New content is available, show update notification
+                                    if (confirm('New version available! Reload to update?')) {
+                                        window.location.reload();
+                                    }
+                                }
+                            });
+                        });
+                    })
+                    .catch((error) => {
+                        console.log('PWA: Service Worker registration failed:', error);
+                    });
+            });
+        }
+
+        // PWA Install Button Handler
+        function showInstallPrompt() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('PWA: User accepted the install prompt');
+                    } else {
+                        console.log('PWA: User dismissed the install prompt');
+                    }
+                    deferredPrompt = null;
+                });
+            }
+        }
+    </script>
 
 </body>
 </html>

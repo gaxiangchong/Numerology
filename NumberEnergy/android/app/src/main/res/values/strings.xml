@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Numerology Analysis</string>
+    <string name="title_activity_main">Numerology Analysis</string>
+    <string name="package_name">com.numerology.analysis</string>
+    <string name="custom_url_scheme">com.numerology.analysis</string>
+</resources>

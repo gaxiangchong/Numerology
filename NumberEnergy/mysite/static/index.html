@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Numerology Analysis Tool</title>
+    <meta name="description" content="Advanced numerology analysis with energy charts and personalized insights">
+    <meta name="theme-color" content="#3b82f6">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Numerology">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/static/manifest.json">
+    
+    <!-- App Icons -->
+    <link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-72x72.png">
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            color: #e5e7eb;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 2rem;
+            border-radius: 50%;
+            border: 2px solid #3b82f6;
+        }
+        
+        h1 {
+            color: #3b82f6;
+            margin-bottom: 1rem;
+        }
+        
+        p {
+            color: #9ca3af;
+            margin-bottom: 2rem;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #3b82f6;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error {
+            color: #ef4444;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="/static/EVER green3.png" alt="Logo" class="logo">
+        <h1>Numerology Analysis Tool</h1>
+        <p>Loading your numerology app...</p>
+        <div class="loading"></div>
+        <div id="error" class="error" style="display: none;">
+            <p>Unable to connect to the server.</p>
+            <p>Please make sure your Flask app is running.</p>
+        </div>
+    </div>
+
+    <script>
+        // Try to redirect to the Flask app
+        // This will be replaced by the actual Flask app when running
+        const serverUrl = window.location.origin.replace('mysite/static', '');
+        
+        // Check if we're in a Capacitor environment
+        if (window.Capacitor) {
+            // We're in the native app, redirect to the main Flask app
+            window.location.href = serverUrl;
+        } else {
+            // We're in a browser, show the app
+            setTimeout(() => {
+                window.location.href = serverUrl;
+            }, 2000);
+        }
+        
+        // Show error if redirect fails
+        setTimeout(() => {
+            document.getElementById('error').style.display = 'block';
+        }, 10000);
+    </script>
+</body>
+</html>

@@ -4,12 +4,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import User, UserHistory
 from extensions import db, migrate  # ✅ NEW
 from flask_bcrypt import Bcrypt
+from translations import get_translation, get_current_language, set_language
 
 from datetime import datetime, timedelta
 import stripe, json
 
 # Replace with your real test keys
-stripe.api_key = "sk_test_51REvA7P2st6SZBP1tb42aLKfEAYH0P4K9Q1Q9ayAAlmU6tITilb4Qs9lqxXYGGFYUpMbTjdfVfqUdRwF55NOak1500fDtgP4D4"  # SECRET KEY
+stripe.api_key = "sk_test_51SA4PtPiKknSy39RC5uqzBKr1PSAEG2iCzlhtOKI0b6zK8qpECGCw1nZpq3tHZwbIDrDIK8hhZ8xofYucSmIJsg100FI2lDUDD"
 
 YOUR_DOMAIN = "http://127.0.0.1:5000"
 
@@ -42,6 +43,14 @@ migrate.init_app(app, db)
 
 with app.app_context():
     db.create_all()
+
+# Add translation context processor
+@app.context_processor
+def inject_translations():
+    return {
+        't': lambda key: get_translation(key, get_current_language()),
+        'current_language': get_current_language()
+    }
 
 
 # Define the pair mappings
@@ -772,6 +781,13 @@ def pricing():
 def contact():
     return render_template('contact.html')
 
+@app.route('/set_language/<language>')
+def set_language_route(language):
+    """Set language and redirect back to the previous page"""
+    if language in ['en', 'zh']:
+        set_language(language)
+    return redirect(request.referrer or url_for('index'))
+
 """ @app.route('/upgrade')
 def upgrade():
     if session.get('user'):
@@ -798,8 +814,8 @@ def upgrade(user_id):
 def subscribe(plan):
     # Replace with your real Stripe price IDs
     price_lookup = {
-        'monthly': 'price_1RJd0WP2st6SZBP1PfnZzp0O',  # ← replace with your monthly price ID
-        'annual': 'price_1RJd0oP2st6SZBP1VzVFn81M'   # ← replace with your annual price ID
+        'monthly': 'price_1SAAlZPiKknSy39RarQrt1u2',  # ← replace with your monthly price ID
+        'annual': 'price_1SAAnuPiKknSy39R0c4IZRMp'   # ← replace with your annual price ID
     }
 
     price_id = price_lookup.get(plan)
@@ -850,7 +866,7 @@ from flask import request, jsonify
 def stripe_webhook():
     payload = request.data
     sig_header = request.headers.get('stripe-signature')
-    endpoint_secret = 'whsec_...'  # 🔐 replace with your webhook secret from Stripe
+    endpoint_secret = 'whsec_jmhO3wbKFNp9aee1IBILuccGxccOltdL'  # 🔐 replace with your webhook secret from Stripe
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
