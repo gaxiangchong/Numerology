@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EventApp</string>
+    <string name="webview_loading">Loading EventApp...</string>
+    <string name="webview_error">Error loading EventApp</string>
+    <string name="permission_required">Permission required for full functionality</string>
+    <string name="network_error">Network error. Please check your connection.</string>
+    <string name="server_error">Server error. Please check if the Flask server is running.</string>
+</resources>

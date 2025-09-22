@@ -1,0 +1,38 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.eventapp.webview.app-mergeDebugResources-36:/values-v16/values-v16.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\Jax Chong\\.gradle\\caches\\8.13\\transforms\\3db838be05f27ba9d0e36c24d81b3447\\transformed\\core-1.12.0\\res\\values-v16\\values-v16.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "65",
+                        "endOffsets": "116"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Jax Chong\\.gradle\\caches\\8.13\\transforms\\c41cc3c0ff7938880676355edf2b0fa7\\transformed\\appcompat-1.6.1\\res\\values-v16\\values-v16.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endLines": "5",
+                        "endColumns": "12",
+                        "endOffsets": "223"
+                    },
+                    "to": {
+                        "startLines": "3",
+                        "startColumns": "4",
+                        "startOffsets": "121",
+                        "endLines": "6",
+                        "endColumns": "12",
+                        "endOffsets": "289"
+                    }
+                }
+            ]
+        }
+    ]
+}

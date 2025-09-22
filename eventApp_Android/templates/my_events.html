@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}My Events - EventApp{% endblock %}
+{% block content %}
+  <div class="welcome-section">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="welcome-title">My Events</h1>
+        <p class="welcome-subtitle">Events you're attending</p>
+      </div>
+    </div>
+  </div>
+  
+  {% if rsvps %}
+    <div class="row">
+      {% for rsvp in rsvps %}
+        <div class="col-12 mb-3">
+          <div class="event-card">
+            <!-- Status Badge -->
+            <div class="status-badge">{{ rsvp.status }}</div>
+            
+            <!-- Event Title -->
+            <h5 class="event-title">{{ rsvp.event.name }}</h5>
+            
+            <!-- Event Description -->
+            {% if rsvp.event.description %}
+              <p class="event-description">{{ rsvp.event.description[:100] }}{% if rsvp.event.description|length > 100 %}…{% endif %}</p>
+            {% endif %}
+            
+            <!-- Event Meta Information -->
+            <div class="event-meta">
+              <i class="fas fa-calendar"></i>
+              <span>{{ rsvp.event.start_date.strftime('%m/%d/%Y') }}</span>
+            </div>
+            
+            <div class="event-meta">
+              <i class="fas fa-clock"></i>
+              <span>{{ rsvp.event.start_date.strftime('%I:%M:%S %p') }}{% if rsvp.event.end_date %} - {{ rsvp.event.end_date.strftime('%I:%M:%S %p') }}{% endif %}</span>
+            </div>
+            
+            <div class="event-meta">
+              <i class="fas fa-map-marker-alt"></i>
+              <span>{{ rsvp.event.city or rsvp.event.location }}</span>
+            </div>
+            
+            <!-- Organizer Info -->
+            <div class="organizer-info">
+              <div class="organizer-avatar">
+                {{ rsvp.event.creator.username[:2].upper() }}
+              </div>
+              <span>Organized by {{ rsvp.event.creator.display_name }}</span>
+            </div>
+            
+            <!-- RSVP Info -->
+            <div class="attendee-count">
+              <i class="fas fa-users"></i>
+              <span>Your response: {{ rsvp.status }}{% if rsvp.status == 'Accepted' and rsvp.guests %} (Guests: {{ rsvp.guests }}){% endif %}</span>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="d-flex gap-2">
+              <a href="{{ url_for('event_detail', event_id=rsvp.event.id) }}" class="btn btn-primary btn-sm">View Event</a>
+              
+              <!-- Feedback Button - Show for any RSVP when feedback is enabled by admin -->
+              {% if rsvp.event.feedback_enabled %}
+                {% set user_feedback = rsvp.event.feedbacks|selectattr('user_id', 'equalto', current_user.id)|first %}
+                {% if not user_feedback %}
+                  <a href="{{ url_for('feedback_page', event_id=rsvp.event.id) }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-star mr-1"></i>{{ get_translation('feedback') }}
+                  </a>
+                {% else %}
+                  <span class="btn btn-outline-success btn-sm disabled">
+                    <i class="fas fa-check mr-1"></i>Feedback Submitted
+                  </span>
+                {% endif %}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center py-5">
+      <h4>No events yet</h4>
+      <p class="text-muted">You haven't RSVP'd to any events yet.</p>
+    </div>
+  {% endif %}
+{% endblock %}

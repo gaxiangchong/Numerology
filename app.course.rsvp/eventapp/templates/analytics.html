@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}Analytics - Noble Quest{% endblock %}
+{% block content %}
+  <div class="welcome-section">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="welcome-title">Event Analytics</h1>
+        <p class="welcome-subtitle">Track your event performance</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Statistics Cards -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">{{ total_events }}</h5>
+          <p class="card-text">Total Events</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">{{ total_rsvps }}</h5>
+          <p class="card-text">Total RSVPs</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">{{ total_attendees }}</h5>
+          <p class="card-text">Total Attendees</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title">
+            {% if total_rsvps > 0 %}
+              {{ "%.1f"|format((total_attendees / total_rsvps * 100)) }}%
+            {% else %}
+              0%
+            {% endif %}
+          </h5>
+          <p class="card-text">Acceptance Rate</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Events -->
+  <h4>Recent Events</h4>
+  {% if recent_events %}
+    <div class="table-responsive">
+      <table class="table table-striped analytics-table">
+        <thead>
+          <tr>
+            <th>Event Name</th>
+            <th>Date</th>
+            <th>Accepted</th>
+            <th>Maybe</th>
+            <th>Declined</th>
+            <th>Capacity</th>
+            <th>Check-ins</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for event in recent_events %}
+            <tr>
+              <td>
+                <a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.name }}</a>
+              </td>
+              <td>{{ event.date.strftime('%Y-%m-%d %H:%M') }}</td>
+              <td>
+                <span class="badge badge-success">{{ event.accepted_count }}</span>
+              </td>
+              <td>
+                <span class="badge badge-warning">{{ event.maybe_count }}</span>
+              </td>
+              <td>
+                <span class="badge badge-danger">{{ event.declined_count }}</span>
+              </td>
+              <td>{{ event.capacity }}</td>
+              <td>
+                <span class="badge badge-info">
+                  {{ event.rsvps|selectattr('checked_in')|list|length }}
+                </span>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No events found.</p>
+  {% endif %}
+
+  <!-- Quick Actions -->
+  <div class="mt-4">
+    <a href="{{ url_for('create_event') }}" class="btn btn-primary">Create New Event</a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">View Dashboard</a>
+  </div>
+{% endblock %}

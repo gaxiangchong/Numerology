@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% block title %}Home - Noble Quest{% endblock %}
+{% block content %}
+  {% if current_user.is_authenticated %}
+    <!-- Welcome Section -->
+    <div class="container">
+      <div class="welcome-section">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1 class="welcome-title">Welcome back, {{ current_user.display_name }}!</h1>
+            <p class="welcome-subtitle">Discover and manage your events</p>
+          </div>
+          {% if current_user.is_admin %}
+            <a href="{{ url_for('create_event') }}" class="btn btn-primary">
+              <i class="fas fa-plus mr-2"></i>Create Event
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <!-- Hero Section for non-authenticated users -->
+    <div class="jumbotron hero-section text-white mb-4">
+      <div class="container">
+        <h1 class="display-4">{{ get_translation('welcome') }}</h1>
+        <p class="lead">{{ get_translation('welcome_subtitle') }}</p>
+        <a class="btn btn-light btn-lg" href="{{ url_for('register') }}" role="button">{{ get_translation('create_account') }}</a>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if events %}
+    <div class="container">
+      <div class="events-grid">
+      {% for event in events %}
+        <div class="event-card-container">
+          <div class="event-card">
+            <!-- Event Image -->
+            <div class="event-image">
+              {% if event.cover_image_url %}
+                <img src="{{ event.cover_image_url }}" alt="{{ event.name }}" class="event-poster">
+              {% else %}
+                <div class="event-poster-placeholder">
+                  <div class="placeholder-icon">
+                    <i class="fas fa-calendar-alt"></i>
+                  </div>
+                  <div class="placeholder-overlay">
+                    <span class="event-category">{{ event.name.split()[0] if event.name.split() else 'Event' }}</span>
+                  </div>
+                </div>
+              {% endif %}
+              <div class="organized-by-label">Organized by {{ event.creator.display_name }}</div>
+              
+              <!-- Status Badge -->
+              {% if event.start_date <= current_time %}
+                <div class="status-badge past-event">Past Event</div>
+              {% elif current_user.is_authenticated %}
+                {% if current_user.id == event.creator_id %}
+                  <div class="status-badge organized">Organized</div>
+                {% else %}
+                  {% set user_rsvp = event.rsvps|selectattr('user_id', 'equalto', current_user.id)|first %}
+                  {% if user_rsvp %}
+                    <div class="status-badge {{ user_rsvp.status.lower() }}">{{ user_rsvp.status }}</div>
+                  {% else %}
+                    <div class="status-badge invited">Invited</div>
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+            </div>
+            
+            <!-- Event Header with inline meta -->
+            <div class="event-header">
+              <div class="event-header-row">
+                <h3 class="event-title">{{ event.name }}</h3>
+              </div>
+              {% if event.description %}
+                <p class="event-description">{{ event.description }}</p>
+                {% if event.description|length > 0 %}
+                  <a class="event-more-link" href="{{ url_for('event_detail', event_id=event.id) }}">more</a>
+                {% endif %}
+              {% endif %}
+            </div>
+            
+            <!-- Event Details -->
+            <div class="event-details">
+              <div class="detail-row">
+                <div class="detail-item">
+                  <i class="fas fa-calendar-alt"></i>
+                  <div class="detail-content">
+                    <span class="detail-label">Date</span>
+                    <span class="detail-value">{{ event.start_date.strftime('%B %d, %Y') }}</span>
+                  </div>
+                </div>
+                <div class="detail-item">
+                  <i class="fas fa-users"></i>
+                  <div class="detail-content">
+                    <span class="detail-label">Attendees</span>
+                    <span class="detail-value">{{ event.accepted_count }}{% if event.capacity %} / {{ event.capacity }}{% endif %}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-item">
+                  <i class="fas fa-clock"></i>
+                  <div class="detail-content">
+                    <span class="detail-label">Time</span>
+                    <span class="detail-value">{{ event.start_date.strftime('%I:%M %p') }}{% if event.end_date %} - {{ event.end_date.strftime('%I:%M %p') }}{% endif %}</span>
+                  </div>
+                </div>
+                <div class="detail-item">
+                  <i class="fas fa-dollar-sign"></i>
+                  <div class="detail-content">
+                    <span class="detail-label">Price</span>
+                    <span class="detail-value {% if event.price == 0 %}free-price{% else %}paid-price{% endif %}">
+                      {% if event.price == 0 %}
+                        FREE
+                      {% else %}
+                        {{ get_currency_info(default_country).symbol }}{{ "%.2f"|format(event.price) }}
+                      {% endif %}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-item">
+                  <i class="fas fa-map-marker-alt"></i>
+                  <div class="detail-content">
+                    <span class="detail-label">Location</span>
+                    <span class="detail-value">{{ event.city or event.location }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Event Footer -->
+            <div class="event-footer">
+              <div class="organizer-info">
+                <div class="organizer-avatar">
+                  {{ event.creator.username[:2].upper() }}
+                </div>
+                <div class="organizer-details">
+                  <span class="organizer-label">Organized by</span>
+                  <span class="organizer-name">{{ event.creator.display_name }}</span>
+                </div>
+              </div>
+              
+              {% if current_user.is_authenticated and current_user.id == event.creator_id %}
+                <a href="{{ url_for('update_event', event_id=event.id) }}" class="action-btn modify-btn">
+                  <i class="fas fa-edit"></i>
+                  <span>Edit</span>
+                </a>
+              {% endif %}
+            </div>
+            
+            <!-- Click to view details -->
+            {% if event.start_date > current_time %}
+              <a href="{{ url_for('event_detail', event_id=event.id) }}" class="event-link"></a>
+            {% else %}
+              <div class="event-link-disabled" title="This event has ended"></div>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+      </div>
+    </div>
+  {% else %}
+    <div class="text-center py-5">
+      <h4>No events available</h4>
+      <p class="text-muted">Check back later for new events!</p>
+    </div>
+  {% endif %}
+{% endblock %}

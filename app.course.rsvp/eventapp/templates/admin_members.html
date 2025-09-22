@@ -1,0 +1,661 @@
+{% extends 'base.html' %}
+{% block title %}{{ get_translation('members') }} - Noble Quest{% endblock %}
+
+{% block content %}
+  <div class="welcome-section">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="welcome-title">{{ get_translation('members') }}</h1>
+        <p class="welcome-subtitle">Manage member details and membership grades</p>
+      </div>
+      <div class="d-flex align-items-center">
+        <a href="{{ url_for('export_members') }}" class="btn btn-success mr-3">
+          <i class="fas fa-download mr-2"></i>Export Members
+        </a>
+        <span class="badge badge-info">Total Members: {{ members|length }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Membership Grade Statistics -->
+  <div class="row mb-4">
+    {% for grade, count in grade_stats.items() %}
+      <div class="col-md-2 col-sm-4 col-6 mb-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <i class="{{ get_membership_grade_info(grade).icon }}" style="color: {{ get_membership_grade_info(grade).color }}; font-size: 24px;"></i>
+            <h6 class="card-title mt-2">{{ grade }}</h6>
+            <h4 class="text-primary">{{ count }}</h4>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Members Table -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">
+        <i class="fas fa-users mr-2"></i>All Members
+      </h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover members-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Username</th>
+              <th>Full Name</th>
+              <th>Phone</th>
+              <th>Country</th>
+              <th>Grade</th>
+              <th>YS Type</th>
+              <th>Credits</th>
+              <th>RSVPs</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for member in members %}
+              <tr>
+                <td>{{ member.id }}</td>
+                <td>
+                  <strong>{{ member.username }}</strong>
+                  {% if member.is_admin %}
+                    <span class="badge badge-danger ml-1">Admin</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if member.first_name or member.last_name %}
+                    {{ member.first_name }} {{ member.last_name }}
+                  {% else %}
+                    <span class="text-muted">Not provided</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if member.phone %}
+                    {{ member.phone }}
+                  {% else %}
+                    <span class="text-muted">Not provided</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if member.country %}
+                    {{ member.country }}
+                  {% else %}
+                    <span class="text-muted">Not provided</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="membership-grade" style="background-color: {{ get_membership_grade_info(member.membership_grade).color }}20; color: {{ get_membership_grade_info(member.membership_grade).color }}; border: 1px solid {{ get_membership_grade_info(member.membership_grade).color }};">
+                    <i class="{{ get_membership_grade_info(member.membership_grade).icon }}"></i>
+                    {{ member.membership_grade }}
+                  </span>
+                </td>
+                <td>
+                  <span class="membership-type" style="background-color: {{ get_membership_type_info(member.membership_type).color }}20; color: {{ get_membership_type_info(member.membership_type).color }}; border: 1px solid {{ get_membership_type_info(member.membership_type).color }};">
+                    <i class="{{ get_membership_type_info(member.membership_type).icon }}"></i>
+                    {{ member.membership_type }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge badge-warning">
+                    <i class="fas fa-coins"></i> {{ "%.2f"|format(member.credit_point or 0) }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge badge-info">{{ member.rsvps|length }}</span>
+                </td>
+                <td>
+                  <button type="button" class="btn btn-sm btn-outline-primary edit-btn" data-member-id="{{ member.id }}" title="Edit Member Details">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-warning reset-password-btn" data-member-id="{{ member.id }}" data-member-username="{{ member.username }}" title="Reset Password">
+                    <i class="fas fa-key"></i>
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Superuser Password Modal -->
+  <div class="modal fade" id="superuserModal" tabindex="-1" role="dialog" aria-labelledby="superuserModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="superuserModalLabel">
+            <i class="fas fa-shield-alt text-warning"></i> Superuser Authentication Required
+          </h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Warning:</strong> You are about to perform a sensitive administrative action. Please enter the superuser password to continue.
+          </div>
+          <div class="form-group">
+            <label for="superuserPassword">Superuser Password:</label>
+            <input type="password" class="form-control" id="superuserPassword" placeholder="Enter superuser password">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-warning" onclick="validateSuperuserPassword()" id="superuserAuthBtn">
+            <i class="fas fa-key"></i> Authenticate
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Comprehensive Member Edit Modal -->
+  <div class="modal fade" id="editMemberModal" tabindex="-1" role="dialog" aria-labelledby="editMemberModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editMemberModalLabel">
+            <i class="fas fa-user-edit"></i> Edit Member Details
+          </h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <form id="editMemberForm" method="post">
+          <div class="modal-body">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label for="editUsername">Username:</label>
+                  <input type="text" class="form-control" id="editUsername" name="username" required>
+                </div>
+                <div class="form-group">
+                  <label for="editEmail">Email:</label>
+                  <input type="email" class="form-control" id="editEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                  <label for="editFirstName">First Name:</label>
+                  <input type="text" class="form-control" id="editFirstName" name="first_name">
+                </div>
+                <div class="form-group">
+                  <label for="editLastName">Last Name:</label>
+                  <input type="text" class="form-control" id="editLastName" name="last_name">
+                </div>
+                <div class="form-group">
+                  <label for="editPhone">Phone:</label>
+                  <input type="text" class="form-control" id="editPhone" name="phone">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label for="editCountry">Country:</label>
+                  <select class="form-control" id="editCountry" name="country">
+                    <option value="">Select Country</option>
+                    <option value="Singapore">Singapore</option>
+                    <option value="Malaysia">Malaysia</option>
+                    <option value="Thailand">Thailand</option>
+                    <option value="Indonesia">Indonesia</option>
+                    <option value="Philippines">Philippines</option>
+                    <option value="Vietnam">Vietnam</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="editCity">City:</label>
+                  <input type="text" class="form-control" id="editCity" name="city">
+                </div>
+                <div class="form-group">
+                  <label for="editMembershipGrade">Membership Grade:</label>
+                  <select class="form-control" id="editMembershipGrade" name="membership_grade" required>
+                    {% for grade in ['Pending Review', 'Classic', 'Silver', 'Gold', 'Platinum', 'Diamond'] %}
+                      <option value="{{ grade }}">{{ grade }} - {{ get_membership_grade_info(grade).description }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="editMembershipType">Membership Type:</label>
+                  <select class="form-control" id="editMembershipType" name="membership_type" required>
+                    {% for type_key, type_info in MEMBERSHIP_TYPES.items() %}
+                      <option value="{{ type_key }}">{{ type_key }} - {{ type_info.description }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="editAccountStatus">Account Status:</label>
+                  <select class="form-control" id="editAccountStatus" name="account_status" required>
+                    <option value="active">Active</option>
+                    <option value="suspended">Suspended</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="editCreditPoint">Credit Points:</label>
+                  <div class="input-group">
+                    <div class="input-group-prepend">
+                      <span class="input-group-text">
+                        <i class="fas fa-coins"></i>
+                      </span>
+                    </div>
+                    <input type="number" class="form-control" id="editCreditPoint" name="credit_point" 
+                           min="0" step="0.01" placeholder="0.00">
+                    <div class="input-group-append">
+                      <button type="button" class="btn btn-outline-secondary" id="addCreditsBtn" title="Add Credits">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                      <button type="button" class="btn btn-outline-secondary" id="subtractCreditsBtn" title="Subtract Credits">
+                        <i class="fas fa-minus"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <small class="form-text text-muted">
+                    <i class="fas fa-info-circle"></i> 
+                    Credit points can be used to pay for events. Only superusers can adjust credit amounts.
+                  </small>
+                </div>
+                <div class="form-group">
+                  <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="editIsAdmin" name="is_admin">
+                    <label class="form-check-label" for="editIsAdmin">
+                      Admin Privileges
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12">
+                <div class="form-group">
+                  <label>Email Verification Status:</label>
+                  <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="editEmailVerified" name="email_verified">
+                    <label class="form-check-label" for="editEmailVerified">
+                      Email Verified
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12">
+                <div class="alert alert-info">
+                  <i class="fas fa-info-circle"></i>
+                  <strong>Note:</strong> Changes will be saved immediately. Use the delete button to remove a member permanently.
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-danger" id="deleteMemberFromEditModal">
+              <i class="fas fa-trash"></i> Delete Member
+            </button>
+            <div class="ml-auto">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Save Changes
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Password Reset Confirmation Modal -->
+  <div class="modal fade" id="resetPasswordModal" tabindex="-1" role="dialog" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title" id="resetPasswordModalLabel">
+            <i class="fas fa-key"></i> Reset Member Password
+          </h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Warning:</strong> This will reset the member's password to a default value.
+          </div>
+          <p>Are you sure you want to reset the password for member <strong id="resetPasswordMemberName"></strong>?</p>
+          <p>This will:</p>
+          <ul>
+            <li>Generate a new default password</li>
+            <li>Force the user to change their password on next login</li>
+            <li>Display the new password for you to share with the user</li>
+          </ul>
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>Note:</strong> You will need to share the new password with the user via email or WhatsApp manually.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-warning" onclick="resetMemberPassword()">
+            <i class="fas fa-key"></i> Reset Password
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal fade" id="deleteMemberModal" tabindex="-1" role="dialog" aria-labelledby="deleteMemberModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title" id="deleteMemberModalLabel">
+            <i class="fas fa-exclamation-triangle"></i> Delete Member
+          </h5>
+          <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Warning:</strong> This action cannot be undone!
+          </div>
+          <p>Are you sure you want to delete member <strong id="deleteMemberName"></strong>?</p>
+          <p>This will permanently remove:</p>
+          <ul>
+            <li>User account and profile</li>
+            <li>All RSVP records</li>
+            <li>All event history</li>
+            <li>All associated data</li>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger" onclick="deleteMember()">
+            <i class="fas fa-trash"></i> Delete Permanently
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Global variables
+let currentMemberId = null;
+let memberData = {};
+
+// Global functions (accessible from onclick attributes)
+function openEditModal(memberId) {
+    console.log('openEditModal called with ID:', memberId);
+    currentMemberId = memberId;
+    const member = memberData[memberId];
+    
+    if (!member) {
+        alert('Member data not found!');
+        return;
+    }
+    
+    // Populate form fields
+    $('#editUsername').val(member.username);
+    $('#editEmail').val(member.email);
+    $('#editFirstName').val(member.first_name);
+    $('#editLastName').val(member.last_name);
+    $('#editPhone').val(member.phone);
+    $('#editCountry').val(member.country);
+    $('#editCity').val(member.city);
+    $('#editMembershipGrade').val(member.membership_grade);
+    $('#editMembershipType').val(member.membership_type);
+    $('#editAccountStatus').val(member.account_status);
+    $('#editCreditPoint').val(member.credit_point || 0);
+    $('#editIsAdmin').prop('checked', member.is_admin);
+    $('#editEmailVerified').prop('checked', member.email_verified);
+    
+    // Set form action
+    $('#editMemberForm').attr('action', '/admin/members/' + memberId + '/update');
+    
+    // Show modal
+    $('#editMemberModal').modal('show');
+}
+
+function confirmDeleteMember(memberId, username) {
+    console.log('confirmDeleteMember called with ID:', memberId, 'Username:', username);
+    currentMemberId = memberId;
+    $('#deleteMemberName').text(username);
+    $('#deleteMemberModal').modal('show');
+}
+
+function confirmResetPassword(memberId, username) {
+    console.log('confirmResetPassword called with ID:', memberId, 'Username:', username);
+    currentMemberId = memberId;
+    $('#resetPasswordMemberName').text(username);
+    $('#resetPasswordModal').modal('show');
+}
+
+function resetMemberPassword() {
+    console.log('resetMemberPassword called');
+    if (!currentMemberId) {
+        alert('No member selected for password reset!');
+        return;
+    }
+    
+    // Set pending password reset flag
+    window.pendingPasswordReset = true;
+    
+    // Show superuser authentication first
+    $('#resetPasswordModal').modal('hide');
+    $('#superuserModal').modal('show');
+}
+
+function deleteMember() {
+    console.log('deleteMember called');
+    if (!currentMemberId) {
+        alert('No member selected for deletion!');
+        return;
+    }
+    
+    // Show superuser authentication first
+    $('#deleteMemberModal').modal('hide');
+    $('#superuserModal').modal('show');
+}
+
+function validateSuperuserPassword() {
+    console.log('validateSuperuserPassword called');
+    const password = $('#superuserPassword').val();
+    
+    if (!password) {
+        alert('Please enter the superuser password!');
+        return;
+    }
+    
+    // Determine action based on context
+    let action = 'delete_member';
+    let formData = null;
+    
+    if (window.pendingFormData) {
+        action = 'edit_member';
+        formData = window.pendingFormData;
+    } else if (window.pendingPasswordReset) {
+        action = 'reset_password';
+    }
+    
+    // Send AJAX request to validate password
+    $.ajax({
+        url: '/admin/validate-superuser',
+        method: 'POST',
+        data: {
+            password: password,
+            action: action,
+            member_id: currentMemberId,
+            form_data: formData
+        },
+        success: function(response) {
+            console.log('Superuser validation response:', response);
+            if (response.success) {
+                $('#superuserModal').modal('hide');
+                
+                if (action === 'edit_member') {
+                    console.log('Edit successful, reloading page...');
+                    // Show success message before reload
+                    alert('Member updated successfully! Reloading page...');
+                    // Force reload with cache busting
+                    window.location.href = window.location.href + '?t=' + new Date().getTime();
+                } else if (action === 'reset_password') {
+                    // Proceed with password reset via POST
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '/admin/members/' + currentMemberId + '/reset-password';
+                    
+                    const passwordInput = document.createElement('input');
+                    passwordInput.type = 'hidden';
+                    passwordInput.name = 'superuser_password';
+                    passwordInput.value = password;
+                    
+                    form.appendChild(passwordInput);
+                    document.body.appendChild(form);
+                    form.submit();
+                } else {
+                    // Proceed with member deletion
+                    window.location.href = '/admin/members/' + currentMemberId + '/delete';
+                }
+            } else {
+                alert('Invalid superuser password!');
+                $('#superuserPassword').val('');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('AJAX error:', xhr.responseText);
+            alert('Error validating superuser password: ' + error);
+        }
+    });
+}
+
+$(document).ready(function() {
+    // Initialize DataTable for better table management
+    $('.members-table').DataTable({
+        "pageLength": 25,
+        "order": [[ 0, "desc" ]], // Sort by ID descending (newest first)
+        "columnDefs": [
+            { "orderable": false, "targets": 9 } // Disable sorting on Actions column
+        ],
+        "language": {
+            "search": "Search members:",
+            "lengthMenu": "Show _MENU_ members per page",
+            "info": "Showing _START_ to _END_ of _TOTAL_ members",
+            "infoEmpty": "No members found",
+            "infoFiltered": "(filtered from _TOTAL_ total members)"
+        },
+        "initComplete": function() {
+            // Disable autocomplete on the search input
+            $('.dataTables_filter input').attr('autocomplete', 'off');
+        }
+    });
+
+    // Store member data for easy access
+    {% for member in members %}
+    memberData[{{ member.id }}] = {
+        id: {{ member.id }},
+        username: "{{ member.username }}",
+        email: "{{ member.email }}",
+        first_name: "{{ member.first_name or '' }}",
+        last_name: "{{ member.last_name or '' }}",
+        phone: "{{ member.phone or '' }}",
+        country: "{{ member.country or '' }}",
+        city: "{{ member.city or '' }}",
+        membership_grade: "{{ member.membership_grade }}",
+        membership_type: "{{ member.membership_type }}",
+        account_status: "{{ member.account_status }}",
+        credit_point: {{ member.credit_point or 0 }},
+        is_admin: {{ member.is_admin|lower }},
+        email_verified: {{ member.email_verified|lower }},
+        has_default_password: {{ member.has_default_password|lower }}
+    };
+    {% endfor %}
+    
+    // Handle edit form submission with superuser validation
+    $('#editMemberForm').on('submit', function(e) {
+        e.preventDefault();
+        console.log('Edit form submitted');
+        
+        // Debug: Log form data
+        const formData = $(this).serialize();
+        console.log('Form data:', formData);
+        
+        // Show superuser authentication
+        $('#editMemberModal').modal('hide');
+        $('#superuserModal').modal('show');
+        
+        // Store form data for later submission
+        window.pendingFormData = formData;
+    });
+
+    // Clear superuser password when modal is closed
+    $('#superuserModal').on('hidden.bs.modal', function() {
+        $('#superuserPassword').val('');
+        window.pendingFormData = null; // Clear pending form data
+        window.pendingPasswordReset = false; // Clear pending password reset
+    });
+    
+    // Handle edit button clicks using event delegation
+    $(document).on('click', '.edit-btn', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const memberId = $(this).data('member-id');
+        openEditModal(memberId);
+    });
+    
+    // Handle password reset button clicks using event delegation
+    $(document).on('click', '.reset-password-btn', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const memberId = $(this).data('member-id');
+        const username = $(this).data('member-username');
+        confirmResetPassword(memberId, username);
+    });
+    
+    // Handle delete button inside edit modal
+    $('#deleteMemberFromEditModal').on('click', function(e) {
+        e.preventDefault();
+        if (!currentMemberId) {
+            alert('No member selected for deletion!');
+            return;
+        }
+        
+        // Get member data
+        const member = memberData[currentMemberId];
+        if (!member) {
+            alert('Member data not found!');
+            return;
+        }
+        
+        // Close edit modal and show delete confirmation
+        $('#editMemberModal').modal('hide');
+        confirmDeleteMember(currentMemberId, member.username);
+    });
+    
+    // Handle credit adjustment buttons
+    $('#addCreditsBtn').on('click', function(e) {
+        e.preventDefault();
+        const currentCredits = parseFloat($('#editCreditPoint').val()) || 0;
+        const addAmount = prompt('Enter amount to add to credits:', '10.00');
+        if (addAmount !== null && !isNaN(parseFloat(addAmount))) {
+            const newAmount = currentCredits + parseFloat(addAmount);
+            $('#editCreditPoint').val(newAmount.toFixed(2));
+        }
+    });
+    
+    $('#subtractCreditsBtn').on('click', function(e) {
+        e.preventDefault();
+        const currentCredits = parseFloat($('#editCreditPoint').val()) || 0;
+        const subtractAmount = prompt('Enter amount to subtract from credits:', '10.00');
+        if (subtractAmount !== null && !isNaN(parseFloat(subtractAmount))) {
+            const newAmount = Math.max(0, currentCredits - parseFloat(subtractAmount));
+            $('#editCreditPoint').val(newAmount.toFixed(2));
+        }
+    });
+});
+</script>
+{% endblock %}

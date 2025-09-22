@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+{% block title %}Add Feedback Form - Noble Quest{% endblock %}
+{% block content %}
+  <div class="welcome-section">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="welcome-title">Add Feedback Form</h1>
+        <p class="welcome-subtitle">Create a new Microsoft Forms feedback form for an event</p>
+      </div>
+      <div>
+        <a href="{{ url_for('feedback_analytics') }}" class="btn btn-secondary">
+          <i class="fas fa-arrow-left mr-2"></i>Back to Analytics
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-file-alt mr-2"></i>Feedback Form Details
+          </h5>
+        </div>
+        <div class="card-body">
+          <form method="post">
+            <div class="form-group">
+              <label for="event_id">Select Event</label>
+              <select class="form-control" id="event_id" name="event_id" required>
+                <option value="">Choose an event...</option>
+                {% for event in events %}
+                  <option value="{{ event.id }}" {{ 'selected' if request.args.get('event_id') == event.id|string else '' }}>
+                    {{ event.name }} - {{ event.start_date.strftime('%B %d, %Y') }}
+                  </option>
+                {% endfor %}
+              </select>
+              <small class="form-text text-muted">Select the event this feedback form is for.</small>
+            </div>
+
+            <div class="form-group">
+              <label for="form_name">Form Name</label>
+              <input type="text" class="form-control" id="form_name" name="form_name" 
+                     placeholder="e.g., Event Feedback Survey" required>
+              <small class="form-text text-muted">Give your feedback form a descriptive name.</small>
+            </div>
+
+            <div class="form-group">
+              <label for="ms_form_id">Microsoft Forms ID</label>
+              <input type="text" class="form-control" id="ms_form_id" name="ms_form_id" 
+                     placeholder="e.g., 1FAIpQLSd..." required>
+              <small class="form-text text-muted">
+                The form ID from your Microsoft Forms URL. 
+                <a href="#" data-toggle="modal" data-target="#helpModal">How to find this?</a>
+              </small>
+            </div>
+
+            <div class="form-group">
+              <label for="ms_form_url">Microsoft Forms Embed URL</label>
+              <input type="url" class="form-control" id="ms_form_url" name="ms_form_url" 
+                     placeholder="https://forms.office.com/Pages/ResponsePage.aspx?id=..." required>
+              <small class="form-text text-muted">
+                The full embed URL from Microsoft Forms. 
+                <a href="#" data-toggle="modal" data-target="#helpModal">How to get this?</a>
+              </small>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save mr-2"></i>Create Feedback Form
+              </button>
+              <a href="{{ url_for('feedback_analytics') }}" class="btn btn-secondary ml-2">
+                Cancel
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Help Information Card -->
+      <div class="card mt-4">
+        <div class="card-header">
+          <h6 class="mb-0">
+            <i class="fas fa-question-circle mr-2"></i>How to Create a Microsoft Form
+          </h6>
+        </div>
+        <div class="card-body">
+          <ol class="mb-3">
+            <li>Go to <a href="https://forms.office.com" target="_blank">Microsoft Forms</a></li>
+            <li>Click "New Form" to create a new form</li>
+            <li>Add your questions and customize the form</li>
+            <li>Click "Share" and then "Embed"</li>
+            <li>Copy the embed code and extract the form ID and URL</li>
+          </ol>
+          
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle mr-2"></i>
+            <strong>Tip:</strong> Make sure your Microsoft Form is set to accept responses from anyone with the link.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div class="modal fade" id="helpModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-question-circle mr-2"></i>How to Get Microsoft Forms Information
+          </h5>
+          <button type="button" class="close" data-dismiss="modal">
+            <span>&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <h6>Step 1: Create Your Form</h6>
+          <p>Go to <a href="https://forms.office.com" target="_blank">Microsoft Forms</a> and create your feedback form.</p>
+          
+          <h6>Step 2: Get the Embed Code</h6>
+          <ol>
+            <li>Click the "Share" button in your form</li>
+            <li>Click "Embed" tab</li>
+            <li>Copy the embed code</li>
+          </ol>
+          
+          <h6>Step 3: Extract Information</h6>
+          <p>The embed code will look like this:</p>
+          <pre class="bg-light p-3"><code>&lt;iframe src="https://forms.office.com/Pages/ResponsePage.aspx?id=1FAIpQLSd...&embed=true" width="100%" height="400" frameborder="0"&gt;&lt;/iframe&gt;</code></pre>
+          
+          <p><strong>Form ID:</strong> Extract the part after <code>id=</code> and before <code>&embed=true</code></p>
+          <p><strong>Form URL:</strong> Use the entire URL from the <code>src</code> attribute</p>
+          
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            Make sure your form is set to accept responses from anyone with the link in the form settings.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.form-actions {
+  padding-top: 20px;
+  border-top: 1px solid var(--dark-border);
+  margin-top: 20px;
+}
+
+.card {
+  background-color: var(--dark-card);
+  border: 1px solid var(--dark-border);
+}
+
+.card-header {
+  background-color: var(--dark-bg);
+  border-bottom: 1px solid var(--dark-border);
+}
+
+.form-control {
+  background-color: var(--dark-bg);
+  border: 1px solid var(--dark-border);
+  color: var(--dark-text);
+}
+
+.form-control:focus {
+  background-color: var(--dark-bg);
+  border-color: var(--primary-color);
+  color: var(--dark-text);
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.form-control::placeholder {
+  color: #6c757d;
+}
+
+label {
+  color: var(--dark-text);
+  font-weight: 500;
+}
+
+.form-text {
+  color: #6c757d;
+}
+
+.alert {
+  border: 1px solid var(--dark-border);
+}
+
+.alert-info {
+  background-color: rgba(23, 162, 184, 0.1);
+  color: #17a2b8;
+}
+
+.alert-warning {
+  background-color: rgba(255, 193, 7, 0.1);
+  color: #ffc107;
+}
+
+pre {
+  color: var(--dark-text);
+  border: 1px solid var(--dark-border);
+  border-radius: 4px;
+}
+
+.modal-content {
+  background-color: var(--dark-card);
+  border: 1px solid var(--dark-border);
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--dark-border);
+}
+
+.modal-footer {
+  border-top: 1px solid var(--dark-border);
+}
+
+.close {
+  color: var(--dark-text);
+}
+
+.close:hover {
+  color: var(--dark-text);
+}
+</style>
+{% endblock %}

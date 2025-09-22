@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}Delete Member - EventApp{% endblock %}
+{% block content %}
+  <div class="welcome-section">
+    <h1 class="welcome-title text-danger">
+      <i class="fas fa-exclamation-triangle"></i> Delete Member
+    </h1>
+    <p class="welcome-subtitle">Confirm member deletion</p>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card border-danger">
+        <div class="card-header bg-danger text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-exclamation-triangle"></i> Warning: Permanent Deletion
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>This action cannot be undone!</strong>
+          </div>
+          
+          <p>You are about to permanently delete member:</p>
+          <div class="card bg-light">
+            <div class="card-body">
+              <h6><strong>Username:</strong> {{ user.username }}</h6>
+              <h6><strong>Email:</strong> {{ user.email }}</h6>
+              <h6><strong>Name:</strong> {{ user.first_name }} {{ user.last_name }}</h6>
+              <h6><strong>Member ID:</strong> {{ user.id }}</h6>
+              <h6><strong>Membership Grade:</strong> {{ user.membership_grade }}</h6>
+            </div>
+          </div>
+          
+          <p class="mt-3">This will permanently remove:</p>
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item">User account and profile</li>
+            <li class="list-group-item">All RSVP records ({{ user.rsvps|length }} records)</li>
+            <li class="list-group-item">All event history</li>
+            <li class="list-group-item">All notifications</li>
+            <li class="list-group-item">All feedback submissions</li>
+            <li class="list-group-item">All associated data</li>
+          </ul>
+          
+          <form method="post" class="mt-4">
+            <div class="form-group">
+              <label for="superuserPassword">Superuser Password:</label>
+              <input type="password" class="form-control" id="superuserPassword" name="superuser_password" required>
+              <small class="form-text text-muted">Enter the superuser password to confirm deletion.</small>
+            </div>
+            
+            <div class="form-group">
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="confirmDelete" required>
+                <label class="form-check-label" for="confirmDelete">
+                  I understand this action cannot be undone and I want to permanently delete this member.
+                </label>
+              </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+              <a href="{{ url_for('admin_members') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Cancel
+              </a>
+              <button type="submit" class="btn btn-danger" id="deleteBtn" disabled>
+                <i class="fas fa-trash"></i> Delete Permanently
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Enable delete button only when checkbox is checked
+    $('#confirmDelete').change(function() {
+        $('#deleteBtn').prop('disabled', !this.checked);
+    });
+    
+    // Confirm before submitting
+    $('form').on('submit', function(e) {
+        if (!confirm('Are you absolutely sure you want to delete this member? This action cannot be undone!')) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}
