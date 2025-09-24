@@ -132,9 +132,9 @@ TRANSLATIONS = {
         'welcome_back': 'Welcome Back',
         'welcome_message': 'Enter your account to continue using the analysis tool.',
         'no_account': 'Don\'t have an account? <a href="/register" class="text-blue-400 hover:underline">Click to register</a>',
-        # DISABLED FOR TESTING - Create pro account link
+        # REMOVED FOR TESTING - Pro account text completely hidden
         # 'need_pro': 'Need Pro account? <a href="/create_pro_account" class="text-green-400 hover:underline">Create Pro test account</a>',
-        'need_pro': 'Need Pro account? <span class="text-gray-500">Create Pro test account (disabled for testing)</span>',
+        # 'need_pro': 'Need Pro account? <span class="text-gray-500">Create Pro test account (disabled for testing)</span>',
         'already_have_account': 'Already have an account? <a href="/login" class="text-blue-400 hover:underline">Click to login</a>',
         'currently_using': 'Currently Using',
         'get_started_free': 'Get Started Free',
@@ -286,9 +286,9 @@ TRANSLATIONS = {
         'welcome_back': '欢迎回来',
         'welcome_message': '输入您的账号以继续使用分析工具。',
         'no_account': '还没有账号？<a href="/register" class="text-blue-400 hover:underline">点击注册</a>',
-        # DISABLED FOR TESTING - Create pro account link
+        # REMOVED FOR TESTING - Pro account text completely hidden
         # 'need_pro': '需要Pro账户？<a href="/create_pro_account" class="text-green-400 hover:underline">创建Pro测试账户</a>',
-        'need_pro': '需要Pro账户？<span class="text-gray-500">创建Pro测试账户 (测试时已禁用)</span>',
+        # 'need_pro': '需要Pro账户？<span class="text-gray-500">创建Pro测试账户 (测试时已禁用)</span>',
         'already_have_account': '已有账号？<a href="/login" class="text-blue-400 hover:underline">点击登录</a>',
         'currently_using': '当前已使用',
         'get_started_free': '免费开始',
