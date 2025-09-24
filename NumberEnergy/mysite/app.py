@@ -725,37 +725,38 @@ def clear_history():
             flash("历史记录已清除", "success")
     return redirect(url_for('index'))
 
-@app.route('/create_pro_account', methods=['GET', 'POST'])
-def create_pro_account():
-    """Create a pro account for testing purposes"""
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
-        if not email or not password:
-            flash("请输入邮箱和密码", "error")
-            return render_template('create_pro.html')
-        
-        # Check if user already exists
-        existing_user = User.query.filter_by(email=email).first()
-        if existing_user:
-            flash("用户已存在", "error")
-            return render_template('create_pro.html')
-        
-        # Create new pro user
-        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        new_user = User(
-            email=email, 
-            password=hashed_password, 
-            is_pro=True
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        
-        flash(f"Pro账户 {email} 创建成功！", "success")
-        return redirect(url_for('login'))
-    
-    return render_template('create_pro.html')
+# DISABLED FOR TESTING - Create pro account functionality
+# @app.route('/create_pro_account', methods=['GET', 'POST'])
+# def create_pro_account():
+#     """Create a pro account for testing purposes"""
+#     if request.method == 'POST':
+#         email = request.form.get('email')
+#         password = request.form.get('password')
+#         
+#         if not email or not password:
+#             flash("请输入邮箱和密码", "error")
+#             return render_template('create_pro.html')
+#         
+#         # Check if user already exists
+#         existing_user = User.query.filter_by(email=email).first()
+#         if existing_user:
+#             flash("用户已存在", "error")
+#             return render_template('create_pro.html')
+#         
+#         # Create new pro user
+#         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+#         new_user = User(
+#             email=email, 
+#             password=hashed_password, 
+#             is_pro=True
+#         )
+#         db.session.add(new_user)
+#         db.session.commit()
+#         
+#         flash(f"Pro账户 {email} 创建成功！", "success")
+#         return redirect(url_for('login'))
+#     
+#     return render_template('create_pro.html')
 
 @app.route('/upgrade_to_pro', methods=['POST'])
 def upgrade_to_pro():
