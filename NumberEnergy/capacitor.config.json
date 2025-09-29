@@ -3,7 +3,8 @@
   "appName": "Numerology Analysis",
   "webDir": "mysite/static",
   "server": {
-    "androidScheme": "https"
+    "url": "http://10.0.2.2:5000",
+    "cleartext": true
   },
   "plugins": {
     "SplashScreen": {

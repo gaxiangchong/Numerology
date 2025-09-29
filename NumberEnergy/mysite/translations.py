@@ -314,7 +314,7 @@ def get_translation(key, language='en'):
 def get_current_language():
     """Get current language from session or default to English"""
     from flask import session
-    return session.get('language', 'en')
+    return session.get('language', 'zh')
 
 def set_language(language):
     """Set language in session"""

@@ -12,8 +12,6 @@ import stripe, json
 # Replace with your real test keys
 stripe.api_key = "sk_test_51SA4PtPiKknSy39RC5uqzBKr1PSAEG2iCzlhtOKI0b6zK8qpECGCw1nZpq3tHZwbIDrDIK8hhZ8xofYucSmIJsg100FI2lDUDD"
 
-YOUR_DOMAIN = "http://127.0.0.1:5000"
-
 app = Flask(__name__)
 
 
@@ -21,6 +19,14 @@ app = Flask(__name__)
 migrate = Migrate(app, db) """
 
 app.secret_key = 'your_secret_key'  # Needed for sessions
+
+# Session configuration to improve persistence in Android WebView (HTTP)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False  # HTTP during development
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_PERMANENT'] = True
+from datetime import timedelta
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
 # Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
@@ -699,6 +705,7 @@ def login():
         user = User.query.filter_by(email=email).first()
 
         if user and bcrypt.check_password_hash(user.password, password):
+            session.permanent = True
             session['user'] = email
             session['is_pro'] = user.is_pro  # ✅ set correctly here
             return redirect(url_for('index'))
@@ -822,6 +829,8 @@ def subscribe(plan):
     if not price_id:
         return "无效的订阅类型", 400
 
+    from flask import request
+    base_url = request.url_root.rstrip('/')
     checkout_session = stripe.checkout.Session.create(
         payment_method_types=['card'],
         line_items=[{
@@ -829,8 +838,8 @@ def subscribe(plan):
             'quantity': 1,
         }],
         mode='subscription',
-        success_url=YOUR_DOMAIN + '/upgrade?session_id={CHECKOUT_SESSION_ID}',
-        cancel_url=YOUR_DOMAIN + '/pricing',
+        success_url=base_url + '/upgrade?session_id={CHECKOUT_SESSION_ID}',
+        cancel_url=base_url + '/pricing',
         customer_email=session.get('user')  # Optional: pre-fill email if available
     )
 
@@ -840,6 +849,8 @@ def subscribe(plan):
 
 @app.route('/pay')
 def pay():
+    from flask import request
+    base_url = request.url_root.rstrip('/')
     checkout_session = stripe.checkout.Session.create(
         payment_method_types=['card'],
         line_items=[{
@@ -854,8 +865,8 @@ def pay():
             'quantity': 1,
         }],
         mode='payment',
-        success_url=YOUR_DOMAIN + '/upgrade',
-        cancel_url=YOUR_DOMAIN + '/pricing',
+        success_url=base_url + '/upgrade',
+        cancel_url=base_url + '/pricing',
     )
     return redirect(checkout_session.url, code=303)
 
@@ -899,4 +910,4 @@ def stripe_webhook():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)
