@@ -3,7 +3,7 @@ import sys
 import os
 
 # Add your project directory to the Python path
-path = '/home/yourusername/numerology-app'
+path = '/home/bazipro/numerology-app'
 if path not in sys.path:
     sys.path.append(path)
 

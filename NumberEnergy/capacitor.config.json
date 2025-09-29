@@ -3,7 +3,8 @@
   "appName": "Numerology Analysis",
   "webDir": "mysite/static",
   "server": {
-    "androidScheme": "https"
+    "url": "https://bazipro.pythonanywhere.com",
+    "cleartext": false
   },
   "plugins": {
     "SplashScreen": {
