@@ -1,10 +1,13 @@
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 # .gitignore
 node_modules/
 android/.gradle/
 android/build/
 **/build/
 =======
+=======
+>>>>>>> Stashed changes
 # Python
 __pycache__/
 *.py[cod]
@@ -131,4 +134,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
