@@ -57,10 +57,14 @@ app = Flask(__name__)
 """ from flask_migrate import Migrate
 migrate = Migrate(app, db) """
 
-app.secret_key = 'your_secret_key'  # Needed for sessions
+app.secret_key = os.environ.get('SECRET_KEY') or 'd8f9c7a1e3b42c9f5a6d8e1b3c4f7a9e2d6c8b1a4f9e3d7c6b2a1e8f4c9d3a7'  # Production: set SECRET_KEY in env
 
-# Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI') or 'sqlite:///users.db'
+# Database configuration (DATABASE_URL or SQLALCHEMY_DATABASE_URI)
+app.config['SQLALCHEMY_DATABASE_URI'] = (
+    os.environ.get('SQLALCHEMY_DATABASE_URI') or
+    os.environ.get('DATABASE_URL') or
+    'sqlite:///users.db'
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Mail (forgot password). Set env vars or leave unset to disable.
@@ -863,17 +867,18 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
+        email = (request.form.get('email') or '').strip()
+        password = request.form.get('password') or ''
+        if not email or not password:
+            flash("请填写邮箱和密码" if get_current_language() == 'zh' else "Please enter email and password.", "error")
+            return render_template('login.html')
         user = User.query.filter_by(email=email).first()
-
         if user and bcrypt.check_password_hash(user.password, password):
             session['user'] = email
             session['is_pro'] = user.is_pro
             session['is_admin'] = getattr(user, 'is_admin', False)
             return redirect(url_for('index'))
-        else:
-            flash("登录失败，请检查邮箱或密码", "error")
+        flash("登录失败，请检查邮箱或密码" if get_current_language() == 'zh' else "Login failed. Check email or password.", "error")
     return render_template('login.html')
 
 
@@ -1010,22 +1015,6 @@ def clear_history():
 #         return redirect(url_for('login'))
 #     
 #     return render_template('create_pro.html')
-
-@app.route('/upgrade_to_pro', methods=['POST'])
-def upgrade_to_pro():
-    """Upgrade an existing account to pro"""
-    if session.get('user'):
-        user = User.query.filter_by(email=session['user']).first()
-        if user:
-            user.is_pro = True
-            db.session.commit()
-            session['is_pro'] = True
-            flash("账户已升级为Pro版本！", "success")
-        else:
-            flash("用户不存在", "error")
-    else:
-        flash("请先登录", "error")
-    return redirect(url_for('index'))
 
 @app.route('/referral')
 def referral():

@@ -4,17 +4,10 @@
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <!-- ❗ Show Upgrade Banner if not PRO -->
+  <!-- Show upgrade CTA if not PRO (no test-upgrade button; use /pricing only) -->
   {% if not session.get('is_pro', False) %}
   <div class="bg-surface p-5 rounded-xl shadow text-yellow-400 mb-6">
-    <div class="flex items-center justify-between">
-      <span>{{ t('upgrade_banner')|safe }}</span>
-      <form method="POST" action="/upgrade_to_pro" class="inline">
-        <button type="submit" class="ml-4 bg-green-500 hover:bg-green-600 text-white px-4 py-2 min-h-[44px] rounded-lg text-sm transition focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 focus-visible:ring-offset-dark">
-          {{ t('btn_test_upgrade') }}
-        </button>
-      </form>
-    </div>
+    <span>{{ t('upgrade_banner')|safe }}</span>
   </div>
   {% endif %}
   
