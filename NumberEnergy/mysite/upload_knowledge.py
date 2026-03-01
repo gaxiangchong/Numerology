@@ -79,7 +79,15 @@ def main():
     kwargs = {"file_search_store_name": store_name, "file": path}
     if upload_config:
         kwargs["config"] = upload_config
-    operation = client.file_search_stores.upload_to_file_search_store(**kwargs)
+    try:
+        operation = client.file_search_stores.upload_to_file_search_store(**kwargs)
+    except Exception as e:
+        err = str(e).lower()
+        if "404" in err or "not_found" in err or "does not exist" in err or "corpora" in err:
+            print("ERROR: That store name does not exist. Use the EXACT ID from when you created the store.")
+            print("  Run: python create_file_search_store.py --list   to see your stores and their IDs.")
+            print("  Or run: python create_file_search_store.py --reset   to create a new store and get a new ID for .env")
+        raise
     while not operation.done:
         time.sleep(2)
         operation = client.operations.get(operation)

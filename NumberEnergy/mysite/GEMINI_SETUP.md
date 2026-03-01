@@ -147,7 +147,7 @@ The knowledge base is **not** in your project folder — it lives in Google’s 
    You must have created a store (section 4) and set `GEMINI_FILE_SEARCH_STORE_NAME` in `.env` (e.g. `fileSearchStores/abc123`).
 
 2. **Add or update documents**  
-   Use the same API to upload files into that **existing** store. Each upload adds a new document (it does not delete old ones unless you remove them via the API).
+   Use the same API to upload files into that **existing** store. Each upload **adds** a new document; it does not replace or remove previous uploads.
 
    **Option A – Run the helper script (recommended)**  
    From `NumberEnergy/mysite` (with venv activated and `.env` with `GOOGLE_GEMINI_API_KEY` and `GEMINI_FILE_SEARCH_STORE_NAME` set):
@@ -182,6 +182,9 @@ The knowledge base is **not** in your project folder — it lives in Google’s 
        operation = client.operations.get(operation)
    print("Upload done.")
    ```
+
+   **Deleting documents you already uploaded**  
+   The Gemini (AI Studio) File Search API **does not support deleting individual documents** from an existing store. You cannot remove or replace a single file. To “delete” or replace content, use the **reset** flow (section 5): create a **new** store, upload only the files you want, then set `GEMINI_FILE_SEARCH_STORE_NAME` in `.env` to the new store. The old store is no longer used.
 
 3. **Where to keep your source files**  
    Keep your PDF/TXT/DOCX files anywhere you like (e.g. `NumberEnergy/mysite/knowledge/`). Only the **upload step** (script or script above) sends them to the store; the app does not read from that folder at runtime.
