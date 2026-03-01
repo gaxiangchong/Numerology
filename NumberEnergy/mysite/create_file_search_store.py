@@ -6,8 +6,10 @@ Run from mysite with venv activated and .env containing GOOGLE_GEMINI_API_KEY.
   python create_file_search_store.py              # create store, print name
   python create_file_search_store.py --list       # list existing stores (if any)
   python create_file_search_store.py file.pdf     # create store and upload file
+  python create_file_search_store.py --reset      # RESET: create new store, upload default knowledge, print new name
+  python create_file_search_store.py --reset path/to/file.md   # reset and upload specific file(s)
 
-After creating, add to .env:
+After creating (or --reset), add/update .env:
   GEMINI_FILE_SEARCH_STORE_NAME=<printed store name>
 """
 import os
@@ -71,8 +73,30 @@ def list_stores(client):
         print("(Listing may not be available in this SDK version.)")
 
 
+def _upload_file(client, store_name, path):
+    path = os.path.abspath(path)
+    if not os.path.isfile(path):
+        print("ERROR: File not found:", path)
+        return False
+    print("  Uploading:", path, "...")
+    try:
+        op = client.file_search_stores.upload_to_file_search_store(
+            file_search_store_name=store_name,
+            file=path,
+        )
+        while not op.done:
+            time.sleep(2)
+            op = client.operations.get(op)
+        print("  Done.")
+        return True
+    except Exception as e:
+        print("  Upload failed:", e)
+        return False
+
+
 def main():
     do_list = "--list" in sys.argv or "-l" in sys.argv
+    do_reset = "--reset" in sys.argv or "-r" in sys.argv
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     upload_path = args[0] if args else None
     if upload_path and not os.path.isfile(upload_path):
@@ -80,10 +104,11 @@ def main():
         sys.exit(1)
 
     existing = (os.environ.get("GEMINI_FILE_SEARCH_STORE_NAME") or "").strip()
-    if existing and not do_list and not upload_path:
+    if existing and not do_list and not do_reset and not upload_path:
         print("GEMINI_FILE_SEARCH_STORE_NAME is already set in .env:")
         print(" ", existing)
-        print("You can run: python create_file_search_store.py --list  to see stores.")
+        print("To reset the knowledge base, run: python create_file_search_store.py --reset")
+        print("To list stores: python create_file_search_store.py --list")
         return
 
     client = get_client()
@@ -93,7 +118,44 @@ def main():
         list_stores(client)
         return
 
-    # Create store
+    # --reset: create a NEW store and upload file(s), then tell user to update .env
+    if do_reset:
+        display_name = "易数 Knowledge Base"
+        print("RESET: Creating a NEW file search store (fresh knowledge base)...")
+        try:
+            store = client.file_search_stores.create(config={"display_name": display_name})
+        except Exception as e:
+            print("ERROR creating store:", e)
+            sys.exit(1)
+        store_name = getattr(store, "name", None) or getattr(store, "id", str(store))
+        # Upload: specified file(s) or default knowledge file
+        knowledge_dir = os.path.join(_app_dir, "knowledge")
+        default_file = os.path.join(knowledge_dir, "AGENT_Phone_CarPlate_Specialist.md")
+        if not os.path.isfile(default_file):
+            for name in ("AGENT_易数_Phone_CarPlate_Specialist.md", "AGENT_Phone_CarPlate_Specialist.md"):
+                p = os.path.join(knowledge_dir, name)
+                if os.path.isfile(p):
+                    default_file = p
+                    break
+        to_upload = args if args else ([default_file] if os.path.isfile(default_file) else [])
+        if to_upload:
+            for p in to_upload:
+                _upload_file(client, store_name, p)
+        else:
+            print("No file to upload. Run: python create_file_search_store.py --reset knowledge/YourFile.md")
+        print()
+        print("New store created. Update your .env with:")
+        print()
+        print("  GEMINI_FILE_SEARCH_STORE_NAME=" + store_name)
+        print()
+        print("(You can leave the old store as-is; the app will use this new one once .env is updated.)")
+        try:
+            client.close()
+        except Exception:
+            pass
+        return
+
+    # Create store (non-reset)
     display_name = "易数 Knowledge Base"
     print("Creating file search store:", display_name, "...")
     try:
@@ -115,19 +177,7 @@ def main():
     print()
 
     if upload_path:
-        print("Uploading first file:", upload_path, "...")
-        try:
-            op = client.file_search_stores.upload_to_file_search_store(
-                file_search_store_name=store_name,
-                file=os.path.abspath(upload_path),
-            )
-            while not op.done:
-                time.sleep(2)
-                op = client.operations.get(op)
-            print("Upload done.")
-        except Exception as e:
-            print("Upload failed:", e)
-            sys.exit(1)
+        _upload_file(client, store_name, upload_path)
 
     try:
         client.close()

@@ -113,11 +113,13 @@ TRANSLATIONS = {
         'free_forever': 'Free / forever',
         'per_month': '/ month',
         'per_year': '/ year',
+        'equivalent_monthly': 'Equivalent to RM57.33/month',
         'save_amount': 'Save {amount} (was {original})',
         'save_percentage': 'Save {percentage} (was {original})',
         'two_months_free': 'Save {amount} (2 months free)',
         
         # Features
+        'feature_ai_chat': 'AI Chat Assistant',
         'feature_basic_analysis': 'Basic Number Analysis',
         'feature_energy_charts': 'Energy Distribution Charts',
         'feature_history': 'Analysis History',
@@ -328,11 +330,13 @@ TRANSLATIONS = {
         'free_forever': '免费 / 永久',
         'per_month': '/ 月',
         'per_year': '/ 年',
+        'equivalent_monthly': '相当于每月 RM57.33',
         'save_amount': '节省 {amount}，原价 {original}',
         'save_percentage': '节省 {percentage}，原价 {original}',
         'two_months_free': '节省 {amount}，相当于 2 个月免费',
         
         # Features
+        'feature_ai_chat': 'AI 智能对话助手',
         'feature_basic_analysis': '基础数字分析',
         'feature_energy_charts': '能量分布图表',
         'feature_history': '分析历史',

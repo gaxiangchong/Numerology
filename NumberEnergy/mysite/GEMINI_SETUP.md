@@ -109,7 +109,37 @@ print("GEMINI_FILE_SEARCH_STORE_NAME=" + store.name)
 
 Then set `GEMINI_FILE_SEARCH_STORE_NAME` in `.env` to that value.
 
-## 5. Update your knowledge base (add or replace documents)
+## 5. Reset the knowledge base (clear and start fresh)
+
+If answers are wrong or outdated, the cleanest way is to **create a new store** and point the app at it. The API does not support clearing a store’s contents; creating a new store is the supported “reset.”
+
+**Steps:**
+
+1. From `NumberEnergy/mysite` (venv activated, `GOOGLE_GEMINI_API_KEY` in `.env`):
+   ```bash
+   python create_file_search_store.py --reset
+   ```
+   This creates a **new** store and uploads the default knowledge file (`knowledge/AGENT_Phone_CarPlate_Specialist.md` or similar). To upload a specific file instead:
+   ```bash
+   python create_file_search_store.py --reset knowledge/AGENT_Phone_CarPlate_Specialist.md
+   ```
+   Or multiple files:
+   ```bash
+   python create_file_search_store.py --reset knowledge/file1.md knowledge/file2.md
+   ```
+
+2. The script prints a line like:
+   ```text
+   GEMINI_FILE_SEARCH_STORE_NAME=fileSearchStores/xxxxxxxxxx
+   ```
+
+3. **Update your `.env`** (in `mysite` or `NumberEnergy`): set `GEMINI_FILE_SEARCH_STORE_NAME` to that **new** value.
+
+4. Restart the app. The AI will use the new store. The old store remains in Google but is no longer used.
+
+---
+
+## 6. Update your knowledge base (add or replace documents)
 
 The knowledge base is **not** in your project folder — it lives in Google’s File Search store. To update it:
 
@@ -163,7 +193,7 @@ The knowledge base is **not** in your project folder — it lives in Google’s 
    python upload_knowledge.py knowledge/AGENT_易数_Phone_CarPlate_Specialist.md
    ```
 
-## 6. Usage (in the app)
+## 7. Usage (in the app)
 
 - **Pro users** see the **AI** item in the nav and can open the AI page to ask questions.
 - They can type a question (e.g. "Is this number suitable for business?") and optionally check "Use current number/plate as context" so the AI knows which number they mean.

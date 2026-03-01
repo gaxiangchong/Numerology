@@ -28,6 +28,7 @@ Optional but recommended:
 
 - **YOUR_DOMAIN** – Your site URL (e.g. `https://yourusername.pythonanywhere.com`) for Stripe and links.
 - **STRIPE_SECRET_KEY**, **STRIPE_WEBHOOK_SECRET** – If you use Stripe.
+- **STRIPE_PRICE_MONTHLY**, **STRIPE_PRICE_ANNUAL** – Stripe **Price IDs** (e.g. `price_xxxxx`) for your plans. Create them in [Stripe Dashboard](https://dashboard.stripe.com/products) → your product → Add price (RM68 recurring monthly, RM688 recurring yearly), then copy each Price ID into these env vars. If unset, the app uses the IDs hardcoded in `mysite/app.py` (`STRIPE_PRICE_IDS`).
 - **MAIL_*** ** – If you use “forgot password” email.
 
 ---

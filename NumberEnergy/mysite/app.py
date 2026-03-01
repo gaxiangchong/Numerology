@@ -127,8 +127,13 @@ def require_admin(f):
 # Referral bonus amount (store credit in cents). e.g. 500 = RM5
 REFERRAL_BONUS_CENTS = 500
 # To make a user admin: UPDATE user SET is_admin=1 WHERE email='your@email.com';
-# Plan base prices in cents (for credit/voucher calculation)
-PLAN_PRICE_CENTS = {'monthly': 1390, 'annual': 11900}
+# Plan base prices in cents (for credit/voucher calculation). RM68/month, RM688/year.
+PLAN_PRICE_CENTS = {'monthly': 6800, 'annual': 68800}
+# Stripe Price IDs: create prices in Dashboard (Products → your product → Add price RM68 monthly, RM688 yearly) then set here or in env as STRIPE_PRICE_MONTHLY / STRIPE_PRICE_ANNUAL.
+STRIPE_PRICE_IDS = {
+    'monthly': os.environ.get('STRIPE_PRICE_MONTHLY') or 'price_1T62AAPiKknSy39Rqrl6gofY',
+    'annual': os.environ.get('STRIPE_PRICE_ANNUAL') or 'price_1T62BuPiKknSy39RHC2ignB9',
+}
 
 # Add translation context processor
 @app.context_processor
@@ -1229,11 +1234,7 @@ def subscribe(plan):
         flash('无效的订阅类型', 'error')
         return redirect(url_for('pricing'))
     base_cents = PLAN_PRICE_CENTS[plan]
-    price_lookup = {
-        'monthly': 'price_1SAAlZPiKknSy39RarQrt1u2',
-        'annual': 'price_1SAAnuPiKknSy39R0c4IZRMp'
-    }
-    price_id = price_lookup.get(plan)
+    price_id = STRIPE_PRICE_IDS.get(plan)
     if not price_id:
         return "无效的订阅类型", 400
 
@@ -1307,7 +1308,7 @@ def pay():
         line_items=[{
             'price_data': {
                 'currency': 'myr',
-                'unit_amount': 1390,  # RM13.90 = 990 sen
+                'unit_amount': PLAN_PRICE_CENTS['monthly'],  # RM68
                 'product_data': {
                     'name': '升级为大师版',
                     'description': '解锁大师分析功能'

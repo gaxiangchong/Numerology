@@ -70,14 +70,17 @@
         <h2 class="text-2xl font-bold text-blue-400 mb-2">{{ t('master_monthly') }}</h2>
         <p class="text-gray-300 mb-6">{{ t('unlock_all_features') }}</p>
         <div class="mb-6">
-          <span class="text-4xl font-bold text-white">RM13.90</span>
+          <span class="text-4xl font-bold text-white">RM68</span>
           <span class="text-gray-400">{{ t('per_month') }}</span>
-          <div class="text-sm text-green-400 mt-1">{{ t('save_percentage').format(percentage='30%', original='RM19.90') }}</div>
         </div>
         <div class="text-left mb-6 space-y-3 flex-1">
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
             <span class="text-gray-300">{{ t('free_plan') }} {{ t('feature_basic_analysis') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_ai_chat') }}</span>
           </div>
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
@@ -133,14 +136,18 @@
         <h2 class="text-2xl font-bold text-yellow-400 mb-2">{{ t('master_annual') }}</h2>
         <p class="text-gray-300 mb-6">{{ t('maximum_savings') }}</p>
         <div class="mb-6">
-          <span class="text-4xl font-bold text-white">RM119</span>
+          <span class="text-4xl font-bold text-white">RM688</span>
           <span class="text-gray-400">{{ t('per_year') }}</span>
-          <div class="text-sm text-green-400 mt-1">{{ t('save_percentage').format(percentage='50%', original='RM239') }}</div>
+          <div class="text-sm text-green-400 mt-1">{{ t('equivalent_monthly') }}</div>
         </div>
         <div class="text-left mb-6 space-y-3 flex-1">
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
             <span class="text-gray-300">{{ t('master_monthly') }} {{ t('feature_basic_analysis') }}</span>
+          </div>
+          <div class="flex items-center text-sm">
+            <span class="text-green-400 mr-2">✓</span>
+            <span class="text-gray-300">{{ t('feature_ai_chat') }}</span>
           </div>
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
@@ -225,6 +232,12 @@
           </tr>
           
           <!-- Master Features -->
+          <tr class="border-b border-soft bg-gray-800">
+            <td class="px-6 py-4 font-medium text-textlight">🤖 {{ t('feature_ai_chat') }}</td>
+            <td class="px-6 py-4 text-center"><span class="text-red-400">✗</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+          </tr>
           <tr class="border-b border-soft bg-gray-800">
             <td class="px-6 py-4 font-medium text-textlight">🔮 {{ t('feature_advanced_analysis') }}</td>
             <td class="px-6 py-4 text-center"><span class="text-red-400">✗</span></td>
