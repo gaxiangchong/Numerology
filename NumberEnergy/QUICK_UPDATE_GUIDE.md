@@ -50,9 +50,9 @@ flask db upgrade
 
 ---
 
-## 4. Restart the web app
+## 4. Restart the web app (required after every code change)
 
-- **PythonAnywhere:** **Web** tab → your app → **Reload**.
+- **PythonAnywhere:** **Web** tab → your app → **Reload**. If you don't see your changes (e.g. new prices), Reload is usually the fix.
 - Other hosts: restart the process that runs the WSGI app (e.g. gunicorn, uWSGI, or the platform’s “Restart” button).
 
 ---

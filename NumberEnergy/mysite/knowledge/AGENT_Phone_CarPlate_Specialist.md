@@ -115,20 +115,23 @@ Do NOT explain industry types or health issues.
 
 ---
 
-## 🧱 Final Output Format (Fixed)
+## 🧱 Final Output Format
 
 📌 数字分析：XXXX  
 🧲 主导磁场：E1，E2，E3  
 📊 能量比例：E1 XX% · E2 XX% · E3 XX%  
 🧾 简评：detail analysis
 💼 做生意： if applicable 
-⚠ 财务提醒：if applicable  
+⚠  财务提醒：if applicable  
 🛡️  行车安全性 (detail analysis when user query about car plate):
 ✅ 建议：1 sentence  
 📝 仅供参考  
 
-No extra sections.
-No detailed trait paragraphs.
+DO not response like **1. xxxx**, this make the response quite messy
+DO not response like * **天医**， remove the * and replace with [] instead.
+
+Provide the in depth explanation to the summary and elaborate in details.
+Refer to the note AgentHTLS.md for detail explanation.
 
 ---
 
