@@ -43,8 +43,8 @@
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-lg font-semibold text-highlight">📚 {{ t('recent_numbers') }}</h3>
       {% if recent_numbers %}
-      <form method="POST" action="/clear_history" class="inline">
-        <button type="submit" class="text-sm text-soft hover:text-highlight transition min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-2 focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-surface rounded" onclick="return confirm('{{ t('confirm_clear_history') }}')">
+      <form method="POST" action="/clear_history" class="inline" data-confirm="{{ t('confirm_clear_history') | e }}" id="clear-history-form">
+        <button type="submit" class="text-sm text-soft hover:text-highlight transition min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-2 focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-surface rounded">
           {{ t('btn_clear_history') }}
         </button>
       </form>
@@ -287,6 +287,13 @@ function fillInput(number) {
 
 (function() {
   var form = document.getElementById('analyze-form');
+  var clearForm = document.getElementById('clear-history-form');
+  if (clearForm) {
+    clearForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (confirm(clearForm.getAttribute('data-confirm'))) clearForm.submit();
+    });
+  }
   if (!form) return;
   var btn = document.getElementById('analyze-btn');
   var btnText = btn && btn.querySelector('.btn-text');

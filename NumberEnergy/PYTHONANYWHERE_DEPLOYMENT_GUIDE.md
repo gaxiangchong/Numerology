@@ -119,6 +119,7 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
+This installs all dependencies, including **google-genai** and **python-dotenv** used for the optional AI (Gemini) feature.
 
 ### Step 5: Configure Database
 ```bash
@@ -140,6 +141,23 @@ In PythonAnywhere dashboard:
    STRIPE_PUBLISHABLE_KEY=pk_test_your-stripe-publishable-key
    STRIPE_WEBHOOK_SECRET=whsec_your-webhook-secret
    ```
+
+#### Optional: AI (Gemini) for Pro Users
+To enable the **AI** page (Pro-only Q&A using your knowledge base):
+1. Get an API key from [Google AI Studio](https://aistudio.google.com/apikey).
+2. In the same **Environment variables** section, add:
+   ```
+   GOOGLE_GEMINI_API_KEY=your_gemini_api_key_here
+   ```
+3. **If you use a File Search knowledge base:** Create the store and upload documents **on your local machine** (see `mysite/GEMINI_SETUP.md` and `mysite/create_file_search_store.py`, `upload_knowledge.py`). Do **not** run those scripts on PythonAnywhere. Then add the store name to PythonAnywhere’s env:
+   ```
+   GEMINI_FILE_SEARCH_STORE_NAME=fileSearchStores/your-store-id
+   ```
+   (Copy the store name printed when you ran `python create_file_search_store.py` locally.)
+4. Ensure **google-genai** is in your `requirements.txt` (it is in the project’s `NumberEnergy/requirements.txt`). After `pip install -r requirements.txt` on PythonAnywhere, the AI feature will use this key and optional store.
+5. **Reload** the web app after adding or changing these variables.
+
+If you omit these, the app still runs; the AI page will show “AI feature is not configured” for Pro users.
 
 ### Step 7: Configure WSGI File
 1. **Go to:** Web tab in PythonAnywhere dashboard
@@ -186,6 +204,7 @@ if __name__ == "__main__":
    - Number analysis
    - Stripe payments
    - PWA installation
+   - **AI page (Pro users):** If you set `GOOGLE_GEMINI_API_KEY`, log in as a Pro user, open **AI** in the nav, and send a test question.
 
 ## 🔧 Production Optimizations
 
@@ -265,6 +284,12 @@ python mysite/manage.py db upgrade
 - **Verify HTTPS** is working
 - **Test webhook** with Stripe CLI
 
+#### 5. AI Page Not Working / “Not configured”
+- **Confirm** `GOOGLE_GEMINI_API_KEY` is set in Web → Environment variables (no typos, no extra spaces).
+- **Reload** the web app after changing env vars.
+- **Check** that `pip install -r requirements.txt` was run (so `google-genai` is installed in the venv).
+- **Optional:** If you use a knowledge base, set `GEMINI_FILE_SEARCH_STORE_NAME` to the store name you got from `create_file_search_store.py` (create and upload docs locally, then copy the store name into PythonAnywhere env).
+
 ### Debugging Steps:
 1. **Check PythonAnywhere logs**
 2. **Test locally** with production settings
@@ -300,6 +325,7 @@ python mysite/manage.py db upgrade
 - ✅ Stripe payment processing
 - ✅ PWA installation
 - ✅ Mobile responsiveness
+- ✅ **AI page (Pro):** If configured, test the AI Q&A from the nav.
 
 ### 2. Update Android Studio
 - **Update Capacitor config** with production URL
