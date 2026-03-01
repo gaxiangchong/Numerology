@@ -71,6 +71,10 @@
             to { transform: rotate(360deg); }
         }
         
+        @media (prefers-reduced-motion: reduce) {
+            .loading { animation: none; border-top-color: #3b82f6; }
+        }
+        
         .error {
             color: #ef4444;
             margin-top: 1rem;

@@ -17,7 +17,7 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="text-sm p-2 rounded mb-3 bg-dark border border-soft {{ 'text-green-400' if category == 'success' else 'text-orange-600' }}">
+          <div class="text-sm p-2 rounded mb-3 bg-dark border border-soft {{ 'text-green-400' if category == 'success' else 'text-orange-600' }}" role="alert" aria-live="polite">
             {{ message }}
           </div>
         {% endfor %}
@@ -26,22 +26,25 @@
 
     <form method="POST" class="space-y-4">
       <div>
-        <label for="email" class="block mb-1">{{ t('email_label') }}</label>
-        <input type="email" name="email" id="email" required
-               class="w-full px-4 py-2 bg-dark border border-soft rounded-md text-textlight focus:ring-2 focus:ring-highlight">
+        <label for="email" class="block mb-1 text-textlight">{{ t('email_label') }}</label>
+        <input type="email" name="email" id="email" required autocomplete="email"
+               class="w-full px-4 py-3 min-h-[44px] bg-dark border border-soft rounded-md text-textlight focus:ring-2 focus:ring-highlight focus:border-highlight outline-none transition-shadow">
       </div>
 
       <div>
-        <label for="password" class="block mb-1">{{ t('password_label') }}</label>
-        <input type="password" name="password" id="password" required
-               class="w-full px-4 py-2 bg-dark border border-soft rounded-md text-textlight focus:ring-2 focus:ring-highlight">
+        <label for="password" class="block mb-1 text-textlight">{{ t('password_label') }}</label>
+        <input type="password" name="password" id="password" required autocomplete="current-password"
+               class="w-full px-4 py-3 min-h-[44px] bg-dark border border-soft rounded-md text-textlight focus:ring-2 focus:ring-highlight focus:border-highlight outline-none transition-shadow">
       </div>
 
-      <button type="submit" class="w-full bg-highlight hover:bg-blue-700 text-white py-2 rounded-md">
+      <button type="submit" class="w-full bg-highlight hover:bg-blue-700 text-white py-3 min-h-[44px] rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800">
         {{ t('btn_login') }}
       </button>
     </form>
 
+    <p class="text-sm text-center text-gray-400 mt-2">
+      <a href="{{ url_for('forgot_password') }}" class="text-highlight hover:underline">{{ t('forgot_password') }}</a>
+    </p>
     <p class="text-sm text-center text-gray-400 mt-4">
       {{ t('no_account')|safe }}
     </p>

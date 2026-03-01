@@ -14,21 +14,20 @@
     </div>
   </div>
 
-  <!-- Pricing Cards -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+  <!-- Pricing Cards: desktop = equal height, buttons aligned at bottom -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 md:items-stretch">
 
     <!-- 🟩 Free Plan -->
-    <div class="bg-gray-800 p-8 rounded-xl shadow-lg {% if not is_pro %}border-2 border-green-400{% else %}border border-soft{% endif %} relative">
+    <div class="bg-gray-800 p-8 rounded-xl shadow-lg flex flex-col {% if not is_pro %}border-2 border-green-400{% else %}border border-soft{% endif %} relative">
       {% if not is_pro %}<div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-green-400 text-white px-4 py-1 rounded-full text-sm font-semibold">{{ t('current_plan') }}</div>{% endif %}
-      <div class="text-center">
+      <div class="text-center flex flex-col flex-1 min-h-0">
         <h2 class="text-2xl font-bold text-green-400 mb-2">{{ t('free_plan') }}</h2>
         <p class="text-gray-300 mb-6">{{ t('perfect_for_starting') }}</p>
         <div class="mb-6">
           <span class="text-4xl font-bold text-white">{{ t('free_forever').split(' /')[0] }}</span>
           <span class="text-gray-400">{{ t('free_forever').split(' /')[1] if ' /' in t('free_forever') else '/ forever' }}</span>
         </div>
-        
-        <div class="text-left mb-8 space-y-3">
+        <div class="text-left mb-6 space-y-3 flex-1">
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
             <span class="text-gray-300">{{ t('feature_basic_analysis') }}</span>
@@ -50,23 +49,24 @@
             <span class="text-gray-300">{{ t('feature_support') }}</span>
           </div>
         </div>
-
+        <div class="mt-auto pt-4">
         {% if not session.get('user') %}
-          <a href="/register" class="block w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+          <a href="/register" class="flex items-center justify-center min-h-[44px] w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800">
             {{ t('get_started_free') }}
           </a>
         {% elif not is_pro %}
-          <span class="inline-block w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold text-center">
+          <span class="inline-block w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold text-center min-h-[44px] flex items-center justify-center">
             {{ t('currently_using') }}
           </span>
         {% endif %}
+        </div>
       </div>
     </div>
 
     <!-- 🟦 Monthly Plan -->
-    <div class="bg-gray-800 p-8 rounded-xl shadow-lg border-2 border-blue-400 relative">
+    <div class="bg-gray-800 p-8 rounded-xl shadow-lg border-2 border-blue-400 relative flex flex-col">
       <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-400 text-white px-4 py-1 rounded-full text-sm font-semibold">{{ t('most_popular') }}</div>
-      <div class="text-center">
+      <div class="text-center flex flex-col flex-1 min-h-0">
         <h2 class="text-2xl font-bold text-blue-400 mb-2">{{ t('master_monthly') }}</h2>
         <p class="text-gray-300 mb-6">{{ t('unlock_all_features') }}</p>
         <div class="mb-6">
@@ -74,8 +74,7 @@
           <span class="text-gray-400">{{ t('per_month') }}</span>
           <div class="text-sm text-green-400 mt-1">{{ t('save_percentage').format(percentage='30%', original='RM19.90') }}</div>
         </div>
-        
-        <div class="text-left mb-8 space-y-3">
+        <div class="text-left mb-6 space-y-3 flex-1">
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
             <span class="text-gray-300">{{ t('free_plan') }} {{ t('feature_basic_analysis') }}</span>
@@ -105,17 +104,32 @@
             <span class="text-gray-300">{{ t('feature_recommendations') }}</span>
           </div>
         </div>
-
-        <a href="/subscribe/monthly" class="block w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+        <div class="mt-auto pt-4">
+        {% if session.get('user') and not is_pro %}
+        <form method="POST" action="/subscribe/monthly" class="space-y-2">
+          <input type="text" name="voucher_code" placeholder="优惠码（可选）" class="w-full px-3 py-2 rounded bg-dark border border-soft text-textlight text-sm">
+          {% if credit_balance_cents > 0 %}
+          <label class="flex items-center gap-2 text-sm text-gray-300">
+            <input type="checkbox" name="use_credit" value="1"> 使用余额 (RM{{ "%.2f"|format(credit_balance_cents / 100) }})
+          </label>
+          {% endif %}
+          <button type="submit" class="flex items-center justify-center min-h-[44px] w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800">
+            {{ t('start_monthly') }}
+          </button>
+        </form>
+        {% else %}
+        <a href="/subscribe/monthly" class="flex items-center justify-center min-h-[44px] w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800">
           {{ t('start_monthly') }}
         </a>
+        {% endif %}
+        </div>
       </div>
     </div>
 
     <!-- 💎 Annual Plan -->
-    <div class="bg-gray-800 p-8 rounded-xl shadow-lg border-2 border-yellow-400 relative">
+    <div class="bg-gray-800 p-8 rounded-xl shadow-lg border-2 border-yellow-400 relative flex flex-col">
       <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-black px-4 py-1 rounded-full text-sm font-semibold">{{ t('best_value') }}</div>
-      <div class="text-center">
+      <div class="text-center flex flex-col flex-1 min-h-0">
         <h2 class="text-2xl font-bold text-yellow-400 mb-2">{{ t('master_annual') }}</h2>
         <p class="text-gray-300 mb-6">{{ t('maximum_savings') }}</p>
         <div class="mb-6">
@@ -123,8 +137,7 @@
           <span class="text-gray-400">{{ t('per_year') }}</span>
           <div class="text-sm text-green-400 mt-1">{{ t('save_percentage').format(percentage='50%', original='RM239') }}</div>
         </div>
-        
-        <div class="text-left mb-8 space-y-3">
+        <div class="text-left mb-6 space-y-3 flex-1">
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
             <span class="text-gray-300">{{ t('master_monthly') }} {{ t('feature_basic_analysis') }}</span>
@@ -154,10 +167,25 @@
             <span class="text-gray-300">{{ t('feature_guarantee') }}</span>
           </div>
         </div>
-
-        <a href="/subscribe/annual" class="block w-full bg-yellow-500 hover:bg-yellow-600 text-black px-6 py-3 rounded-lg font-semibold transition-colors">
+        <div class="mt-auto pt-4">
+        {% if session.get('user') and not is_pro %}
+        <form method="POST" action="/subscribe/annual" class="space-y-2">
+          <input type="text" name="voucher_code" placeholder="优惠码（可选）" class="w-full px-3 py-2 rounded bg-dark border border-soft text-textlight text-sm">
+          {% if credit_balance_cents > 0 %}
+          <label class="flex items-center gap-2 text-sm text-gray-300">
+            <input type="checkbox" name="use_credit" value="1"> 使用余额 (RM{{ "%.2f"|format(credit_balance_cents / 100) }})
+          </label>
+          {% endif %}
+          <button type="submit" class="flex items-center justify-center min-h-[44px] w-full bg-yellow-500 hover:bg-yellow-600 text-black px-6 py-3 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800">
+            {{ t('start_annual') }}
+          </button>
+        </form>
+        {% else %}
+        <a href="/subscribe/annual" class="flex items-center justify-center min-h-[44px] w-full bg-yellow-500 hover:bg-yellow-600 text-black px-6 py-3 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800">
           {{ t('start_annual') }}
         </a>
+        {% endif %}
+        </div>
       </div>
     </div>
 

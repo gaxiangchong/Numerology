@@ -10,6 +10,13 @@ TRANSLATIONS = {
         'nav_login': 'Login',
         'nav_logout': 'Logout',
         'nav_register': 'Register',
+        'nav_menu': 'Main navigation',
+        'nav_menu_open': 'Open menu',
+        'nav_menu_close': 'Close menu',
+        'nav_profile': 'Profile',
+        'nav_referral': 'Referral',
+        'nav_admin': 'Admin',
+        'nav_ai': 'AI',
         
         # App titles and headers
         'app_title': 'Numerology Analysis Tool',
@@ -20,7 +27,7 @@ TRANSLATIONS = {
         'register_title': 'Create Account',
         
         # Common elements
-        'logo_text': 'Numerology Tool',
+        'logo_text': '易数',
         'pro_badge': 'PRO',
         'free_badge': 'Free',
         'current_plan': 'Current Plan',
@@ -29,9 +36,21 @@ TRANSLATIONS = {
         
         # Buttons and actions
         'btn_analyze': 'Analyze',
+        'btn_analyzing': 'Analyzing...',
         'btn_login': 'Login',
+        'forgot_password': 'Forgot password?',
+        'forgot_password_title': 'Reset Password',
+        'forgot_password_instructions': 'Enter your email and we\'ll send you a link to reset your password.',
+        'btn_send_reset': 'Send Reset Link',
+        'reset_password_title': 'Set New Password',
+        'reset_password_label': 'New password (min 6 characters)',
+        'btn_set_password': 'Set Password',
         'btn_register': 'Register',
         'btn_logout': 'Logout',
+        'profile_title': 'Profile',
+        'profile_balance_label': 'Balance',
+        'profile_settings_title': 'Settings',
+        'profile_language_label': 'Language',
         'btn_subscribe': 'Subscribe',
         'btn_get_started': 'Get Started',
         'btn_contact': 'Contact Us',
@@ -45,6 +64,10 @@ TRANSLATIONS = {
         'email_label': 'Email:',
         'password_label': 'Password:',
         'input_placeholder': 'Enter your data here...',
+        'referral_code_label': 'Referral code',
+        'referral_code_optional': 'Optional — from a friend?',
+        'referral_code_placeholder': 'Enter code if you have one',
+        'referral_applied_from_link': 'Applied from your referral link',
         
         # Analysis results
         'your_input': 'Your Input:',
@@ -61,8 +84,21 @@ TRANSLATIONS = {
         'career_insights': 'Career',
         'health_insights': 'Health',
         'advantages': 'Advantages',
-        'disadvantages': 'Disadvantages',
-        
+'disadvantages': 'Disadvantages',
+
+        # Pro: Ask AI
+        'ai_ask_title': 'Ask AI',
+        'ai_ask_description': 'Ask whether this number or car plate suits your needs. Answers use our numerology knowledge base.',
+        'ai_ask_placeholder': 'e.g. Is this number suitable for business? Does this plate suit me?',
+        'ai_ask_button': 'Ask',
+        'ai_ask_asking': 'Asking...',
+        'ai_ask_use_current': 'Use current number/plate as context',
+        'ai_ask_error': 'Could not get a response. Please try again.',
+        'ai_ask_unavailable': 'AI feature is not configured.',
+        'ai_page_placeholder': 'Ask about a number or car plate...',
+        'ai_page_number_placeholder': 'Number or plate (optional)',
+        'ai_page_pro_required': 'AI is a Pro feature. Upgrade to use it.',
+
         # Pricing page
         'pricing_subtitle': 'Unlock the power of numerology analysis with our comprehensive feature sets',
         'special_offer': 'Special Offer:',
@@ -154,6 +190,31 @@ TRANSLATIONS = {
         'service_master': 'Master Plan Feature Explanation',
         'service_technical': 'Technical Support',
         'service_account': 'Account Related Issues',
+        
+        # Landing page
+        'landing_hero_title': 'Discover the energy behind your numbers',
+        'landing_hero_subtitle': '易数 combines ancient Yijing wisdom with modern analysis. Understand the magnetic field of your phone numbers, license plates, and life numbers—then upgrade for deeper insights.',
+        'landing_cta_start': 'Get started free',
+        'landing_cta_login': 'I already have an account',
+        'landing_intro_title': 'What is 易数?',
+        'landing_intro_body': '易数 (Yì Shù) is a numerology system rooted in the I Ching (易经). It maps number combinations to energy types—such as 天医 (healing), 延年 (longevity), and 生气 (vitality)—and helps you see the hidden influence of numbers on your choices, relationships, and opportunities. Start with free basic analysis; unlock detailed magnetic-field reports, personality traits, and career insights with the Master plan.',
+        'landing_testimonials_title': 'What users say',
+        'landing_testimonial_1_quote': 'Clear and practical. The upgrade was worth it for the detailed breakdowns.',
+        'landing_testimonial_1_author': '— User, after purchasing Master plan',
+        'landing_testimonial_2_quote': 'Finally understand why certain numbers feel right. Great for choosing phone and plate numbers.',
+        'landing_testimonial_2_author': '— Subscriber',
+        'landing_testimonial_3_quote': 'Simple to use, deep in meaning. Recommended for anyone curious about number energy.',
+        'landing_testimonial_3_author': '— New user',
+        'landing_footer_cta': 'Ready to explore your numbers?',
+        'landing_why_title': 'Why 易数 is the right choice',
+        'landing_why_lead': 'Join thousands who use 易数 to understand the energy behind their numbers—and get more from life.',
+        'landing_why_trial': 'Start with confidence',
+        'landing_why_trial_desc': '14-day free trial for Master features. No credit card required. Try advanced magnetic-field analysis, personality profiles, and career insights risk-free.',
+        'landing_why_unlock': 'One plan, everything unlocked',
+        'landing_why_unlock_desc': 'Master plan includes detailed magnetic-field analysis, secondary combination insights, special warnings, personality traits, career & health insights, and personalized recommendations. From RM13.90/month.',
+        'landing_why_guarantee': '30-day money-back guarantee',
+        'landing_why_guarantee_desc': 'Not satisfied? Get a full refund within 30 days. We’re confident you’ll find 易数 the best choice for number energy analysis.',
+        'landing_why_cta': 'Start free — upgrade when you’re ready.',
     },
     
     'zh': {
@@ -164,6 +225,13 @@ TRANSLATIONS = {
         'nav_login': '登录',
         'nav_logout': '登出',
         'nav_register': '注册',
+        'nav_menu': '主导航',
+        'nav_menu_open': '打开菜单',
+        'nav_menu_close': '关闭菜单',
+        'nav_profile': '个人',
+        'nav_referral': '推荐',
+        'nav_admin': '管理',
+        'nav_ai': 'AI',
         
         # App titles and headers
         'app_title': '命理分析工具',
@@ -174,7 +242,7 @@ TRANSLATIONS = {
         'register_title': '创建账号',
         
         # Common elements
-        'logo_text': '命理工具',
+        'logo_text': '易数',
         'pro_badge': 'PRO',
         'free_badge': 'Free',
         'current_plan': '当前计划',
@@ -183,9 +251,21 @@ TRANSLATIONS = {
         
         # Buttons and actions
         'btn_analyze': '分析',
+        'btn_analyzing': '分析中...',
         'btn_login': '登录',
+        'forgot_password': '忘记密码？',
+        'forgot_password_title': '重置密码',
+        'forgot_password_instructions': '输入注册邮箱，我们将发送重置链接。',
+        'btn_send_reset': '发送重置链接',
+        'reset_password_title': '设置新密码',
+        'reset_password_label': '新密码（至少6位）',
+        'btn_set_password': '设置密码',
         'btn_register': '注册',
         'btn_logout': '登出',
+        'profile_title': '个人中心',
+        'profile_balance_label': '余额',
+        'profile_settings_title': '设置',
+        'profile_language_label': '语言',
         'btn_subscribe': '订阅',
         'btn_get_started': '开始使用',
         'btn_contact': '联系我们',
@@ -196,6 +276,10 @@ TRANSLATIONS = {
         
         # Form labels and inputs
         'input_label': '请输入您的车牌、电话号码、或任何英文、数字：',
+        'referral_code_label': '推荐码',
+        'referral_code_optional': '选填 — 好友分享的推荐码',
+        'referral_code_placeholder': '有推荐码请在此填写',
+        'referral_applied_from_link': '已从推荐链接自动填入',
         'email_label': '邮箱：',
         'password_label': '密码：',
         'input_placeholder': '在此输入您的数据...',
@@ -215,8 +299,21 @@ TRANSLATIONS = {
         'career_insights': '事业',
         'health_insights': '健康',
         'advantages': '优点',
-        'disadvantages': '缺点',
-        
+'disadvantages': '缺点',
+
+        # Pro: Ask AI
+        'ai_ask_title': 'AI 问答',
+        'ai_ask_description': '询问此号码或车牌是否适合您的需求。回答基于易数知识库。',
+        'ai_ask_placeholder': '例如：这个号码适合做生意吗？这块车牌适合我吗？',
+        'ai_ask_button': '提问',
+        'ai_ask_asking': '正在提问...',
+        'ai_ask_use_current': '使用当前分析的号码/车牌作为上下文',
+        'ai_ask_error': '无法获取回复，请稍后再试。',
+        'ai_ask_unavailable': 'AI 功能未配置。',
+        'ai_page_placeholder': '询问号码或车牌...',
+        'ai_page_number_placeholder': '号码或车牌（选填）',
+        'ai_page_pro_required': 'AI 为大师版功能，升级后即可使用。',
+
         # Pricing page
         'pricing_subtitle': '通过我们全面的功能集解锁数字能量分析的力量',
         'special_offer': '特别优惠：',
@@ -308,6 +405,31 @@ TRANSLATIONS = {
         'service_master': '大师版功能说明',
         'service_technical': '技术问题支持',
         'service_account': '账户相关问题',
+        
+        # Landing page
+        'landing_hero_title': '发现数字背后的能量',
+        'landing_hero_subtitle': '易数融合易经智慧与现代分析，解读手机号、车牌与生命数字的磁场能量。免费体验基础分析，升级大师版解锁详细磁场报告、性格与事业洞察。',
+        'landing_cta_start': '免费开始',
+        'landing_cta_login': '我已有账号',
+        'landing_intro_title': '什么是易数？',
+        'landing_intro_body': '易数源自易经，将数字组合对应为天医、延年、生气等能量类型，帮助您了解数字对选择、人际与机遇的潜在影响。免费版提供基础分析与图表；大师版可查看详细磁场分析、性格特质与事业健康建议。',
+        'landing_testimonials_title': '用户怎么说',
+        'landing_testimonial_1_quote': '清晰实用，升级大师版后的详细分析很值。',
+        'landing_testimonial_1_author': '— 购买大师版用户',
+        'landing_testimonial_2_quote': '终于明白为什么某些数字让人安心，选号码和车牌很有参考。',
+        'landing_testimonial_2_author': '— 订阅用户',
+        'landing_testimonial_3_quote': '操作简单、内涵丰富，对数字能量感兴趣的人值得一试。',
+        'landing_testimonial_3_author': '— 新用户',
+        'landing_footer_cta': '准备好探索你的数字了吗？',
+        'landing_why_title': '为什么选择易数',
+        'landing_why_lead': '与众多用户一起，读懂数字背后的能量，让选择更清晰、生活更顺心。',
+        'landing_why_trial': '放心开始',
+        'landing_why_trial_desc': '大师版 14 天免费试用，无需绑卡。可体验高级磁场分析、性格档案与事业洞察，零风险。',
+        'landing_why_unlock': '一个计划，全部解锁',
+        'landing_why_unlock_desc': '大师版含详细磁场分析、辅助组合洞察、特殊组合提醒、性格特质、事业与健康建议及个性化推荐。月付仅需 RM13.90 起。',
+        'landing_why_guarantee': '30 天退款保证',
+        'landing_why_guarantee_desc': '不满意？30 天内可全额退款。我们相信易数会是您做数字能量分析的最佳选择。',
+        'landing_why_cta': '先免费体验，随时升级。',
     }
 }
 

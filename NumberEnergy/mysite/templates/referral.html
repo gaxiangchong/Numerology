@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}推荐好友{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-8 px-4">
+  <h1 class="text-2xl font-bold text-highlight mb-2">推荐好友</h1>
+  <p class="text-soft text-sm mb-6">好友通过您的链接注册并完成首次付费订阅后，您将获得 RM{{ "%.2f"|format(bonus_cents / 100) }} 余额，可用于购买大师版。</p>
+
+  <div class="bg-surface rounded-xl p-6 mb-6">
+    <h2 class="text-lg font-semibold text-textlight mb-2">您的推荐链接</h2>
+    <div class="flex flex-wrap gap-2">
+      <input type="text" id="share-url" readonly value="{{ share_url }}" class="flex-1 min-w-0 px-4 py-2 rounded-lg bg-dark border border-soft text-textlight text-sm">
+      <button type="button" onclick="copyLink()" class="px-4 py-2 rounded-lg bg-highlight text-white text-sm font-medium hover:bg-blue-700 transition">
+        复制链接
+      </button>
+    </div>
+    <p class="text-soft text-xs mt-2">推荐码：<strong>{{ referral_code }}</strong></p>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4 mb-6">
+    <div class="bg-surface rounded-xl p-4 text-center">
+      <p class="text-3xl font-bold text-green-400">{{ referral_count }}</p>
+      <p class="text-soft text-sm">成功推荐人数</p>
+    </div>
+    <div class="bg-surface rounded-xl p-4 text-center">
+      <p class="text-3xl font-bold text-highlight">RM{{ "%.2f"|format(balance_cents / 100) }}</p>
+      <p class="text-soft text-sm">当前余额</p>
+    </div>
+  </div>
+
+  <div class="bg-surface rounded-xl p-4 border border-soft/50">
+    <h3 class="font-semibold text-textlight mb-2">规则说明</h3>
+    <ul class="text-soft text-sm space-y-1 list-disc list-inside">
+      <li>好友须通过您的推荐链接注册</li>
+      <li>好友完成首次付费订阅（月付或年付）后，您将获得 RM{{ "%.2f"|format(bonus_cents / 100) }} 余额</li>
+      <li>余额可用于抵扣大师版订阅费用</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+function copyLink() {
+  var el = document.getElementById('share-url');
+  el.select();
+  el.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(el.value).then(function() {
+    alert('链接已复制到剪贴板');
+  });
+}
+</script>
+{% endblock %}

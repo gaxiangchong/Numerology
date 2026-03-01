@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ t('ai_ask_title') }} — {{ t('logo_text') }}{% endblock %}
+
+{% block content %}
+<div class="flex flex-col h-[calc(100vh-12rem)] min-h-[400px] max-w-4xl mx-auto">
+  {% if gemini_available %}
+  <!-- Response window (main area like AI providers) -->
+  <div id="ai-response-window" class="flex-1 min-h-0 rounded-xl bg-surface border border-soft/50 shadow-lg overflow-hidden flex flex-col">
+    <div id="ai-response-content" class="flex-1 overflow-y-auto p-6 text-textlight leading-relaxed whitespace-pre-wrap">
+      <p class="text-soft text-center py-12">{{ t('ai_ask_placeholder') }}</p>
+    </div>
+    <div id="ai-error-content" class="hidden px-6 pb-4">
+      <p class="text-red-400 text-sm"></p>
+    </div>
+  </div>
+
+  <!-- Input area: single text box + send -->
+  <div class="mt-4 flex-shrink-0">
+    <form id="ai-form" class="flex gap-2">
+      <label for="ai-question" class="sr-only">{{ t('ai_ask_placeholder') }}</label>
+      <textarea id="ai-question" name="question" rows="2" required
+                class="flex-1 min-w-0 px-4 py-3 rounded-xl bg-dark border border-soft text-textlight focus:ring-2 focus:ring-highlight focus:border-highlight outline-none resize-none min-h-[var(--touch-min)]"
+                placeholder="{{ t('ai_page_placeholder') }}"></textarea>
+      <button type="submit" id="ai-send-btn" class="self-end min-h-[var(--touch-min)] min-w-[var(--touch-min)] px-5 rounded-xl bg-highlight hover:bg-blue-600 text-white font-medium transition-colors focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-dark disabled:opacity-70 disabled:cursor-not-allowed"
+              aria-label="{{ t('ai_ask_button') }}">
+        <span id="ai-send-text">{{ t('ai_ask_button') }}</span>
+      </button>
+    </form>
+  </div>
+  {% else %}
+  <div class="flex-1 rounded-xl bg-surface border border-soft/50 shadow-lg p-8 flex items-center justify-center">
+    <p class="text-soft">{{ t('ai_ask_unavailable') }}</p>
+  </div>
+  {% endif %}
+</div>
+
+{% if gemini_available %}
+<script>
+(function() {
+  var form = document.getElementById('ai-form');
+  var responseContent = document.getElementById('ai-response-content');
+  var errorContent = document.getElementById('ai-error-content');
+  var errorText = errorContent ? errorContent.querySelector('p') : null;
+  var sendBtn = document.getElementById('ai-send-btn');
+  var sendText = document.getElementById('ai-send-text');
+  var questionEl = document.getElementById('ai-question');
+  if (!form || !responseContent) return;
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var question = (questionEl && questionEl.value) ? questionEl.value.trim() : '';
+    if (!question) return;
+
+    if (errorContent) { errorContent.classList.add('hidden'); if (errorText) errorText.textContent = ''; }
+    responseContent.innerHTML = '<p class="text-soft text-center py-8">' + '{{ t("ai_ask_asking") }}' + '</p>';
+    responseContent.scrollTop = responseContent.scrollHeight;
+    if (sendBtn) sendBtn.disabled = true;
+    if (sendText) sendText.textContent = '{{ t("ai_ask_asking") }}';
+
+    var payload = { question: question };
+
+    fetch('{{ url_for("ask_ai") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(function(r) { return r.json().then(function(data) { if (!r.ok) throw new Error(data.error || 'Request failed'); return data; }); })
+    .then(function(data) {
+      responseContent.textContent = data.answer || '';
+      responseContent.scrollTop = 0;
+    })
+    .catch(function(err) {
+      responseContent.innerHTML = '<p class="text-soft text-center py-12">' + '{{ t("ai_ask_placeholder") }}' + '</p>';
+      if (errorText) errorText.textContent = err.message || '{{ t("ai_ask_error") }}';
+      if (errorContent) errorContent.classList.remove('hidden');
+    })
+    .finally(function() {
+      if (sendBtn) sendBtn.disabled = false;
+      if (sendText) sendText.textContent = '{{ t("ai_ask_button") }}';
+    });
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

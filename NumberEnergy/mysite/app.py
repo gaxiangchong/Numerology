@@ -1,13 +1,50 @@
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import User, UserHistory
+from models import (
+    User, UserHistory, CreditLedgerEntry, Voucher,
+    ReferralCreditGrant, PendingOrder, PasswordResetToken, _generate_referral_code
+)
 from extensions import db, migrate  # ✅ NEW
 from flask_bcrypt import Bcrypt
 from translations import get_translation, get_current_language, set_language
 
 from datetime import datetime, timedelta
-import stripe, json
+import stripe, json, smtplib, os, secrets
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+# Load .env for GOOGLE_GEMINI_API_KEY etc. Try python-dotenv, then simple file read
+def _load_dotenv(path):
+    """Simple .env loader: KEY=value per line, skip comments and empty lines."""
+    if not os.path.isfile(path):
+        return
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                if '=' in line:
+                    k, _, v = line.partition('=')
+                    k, v = k.strip(), v.strip()
+                    if k and k not in os.environ:
+                        if len(v) >= 2 and (v[0], v[-1]) in (('"', '"'), ("'", "'")):
+                            v = v[1:-1]
+                        os.environ[k] = v
+    except Exception:
+        pass
+
+_app_dir = os.path.dirname(os.path.abspath(__file__))
+_env_root = os.path.join(os.path.dirname(_app_dir), '.env')
+_env_mysite = os.path.join(_app_dir, '.env')
+try:
+    from dotenv import load_dotenv
+    load_dotenv(_env_root)
+    load_dotenv(_env_mysite)
+except ImportError:
+    _load_dotenv(_env_root)
+    _load_dotenv(_env_mysite)
 
 # Replace with your real test keys
 stripe.api_key = "sk_test_51SA4PtPiKknSy39RC5uqzBKr1PSAEG2iCzlhtOKI0b6zK8qpECGCw1nZpq3tHZwbIDrDIK8hhZ8xofYucSmIJsg100FI2lDUDD"
@@ -23,8 +60,18 @@ migrate = Migrate(app, db) """
 app.secret_key = 'your_secret_key'  # Needed for sessions
 
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI') or 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Mail (forgot password). Set env vars or leave unset to disable.
+# See FORGOT_PASSWORD_SETUP.md for free options (Gmail, Resend, Brevo).
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', '')       # e.g. smtp.gmail.com
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', '587'))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() in ('1', 'true', 'yes')
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'])
+app.config['PASSWORD_RESET_EXPIRY_HOURS'] = int(os.environ.get('PASSWORD_RESET_EXPIRY_HOURS', '1'))
 
 db.init_app(app)
 bcrypt = Bcrypt(app)
@@ -44,13 +91,63 @@ migrate.init_app(app, db)
 with app.app_context():
     db.create_all()
 
+# --- Helpers: credit balance, admin check ---
+def get_credit_balance_cents(user_id):
+    if not user_id:
+        return 0
+    from sqlalchemy import func
+    credits = db.session.query(func.coalesce(func.sum(CreditLedgerEntry.amount_cents), 0)).filter(
+        CreditLedgerEntry.user_id == user_id,
+        CreditLedgerEntry.type == 'CREDIT'
+    ).scalar() or 0
+    debits = db.session.query(func.coalesce(func.sum(CreditLedgerEntry.amount_cents), 0)).filter(
+        CreditLedgerEntry.user_id == user_id,
+        CreditLedgerEntry.type.in_(['DEBIT', 'REVERSAL'])
+    ).scalar() or 0
+    return max(0, int(credits) - int(debits))
+
+def require_admin(f):
+    from functools import wraps
+    @wraps(f)
+    def inner(*args, **kwargs):
+        if not session.get('user'):
+            flash('请先登录', 'error')
+            return redirect(url_for('login'))
+        user = User.query.filter_by(email=session['user']).first()
+        if not user or not getattr(user, 'is_admin', False):
+            flash('需要管理员权限', 'error')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return inner
+
+# Referral bonus amount (store credit in cents). e.g. 500 = RM5
+REFERRAL_BONUS_CENTS = 500
+# To make a user admin: UPDATE user SET is_admin=1 WHERE email='your@email.com';
+# Plan base prices in cents (for credit/voucher calculation)
+PLAN_PRICE_CENTS = {'monthly': 1390, 'annual': 11900}
+
 # Add translation context processor
 @app.context_processor
 def inject_translations():
-    return {
+    out = {
         't': lambda key: get_translation(key, get_current_language()),
         'current_language': get_current_language()
     }
+    if session.get('user'):
+        u = User.query.filter_by(email=session['user']).first()
+        if u:
+            out['credit_balance_cents'] = get_credit_balance_cents(u.id)
+            out['referral_code'] = getattr(u, 'referral_code', None)
+            out['is_admin'] = getattr(u, 'is_admin', False)
+        else:
+            out['credit_balance_cents'] = 0
+            out['referral_code'] = None
+            out['is_admin'] = False
+    else:
+        out['credit_balance_cents'] = 0
+        out['referral_code'] = None
+        out['is_admin'] = False
+    return out
 
 
 # Define the pair mappings
@@ -553,9 +650,15 @@ def parse_primary_result(primary_result):
     return parsed_result
 
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
+@app.route('/')
+def landing():
+    """Landing page: intro, testimonials, CTAs. Logo links here."""
+    return render_template('landing.html')
 
+
+@app.route('/app', methods=['GET', 'POST'])
+def index():
+    """Main analysis app. Nav 'Home' links here."""
     if 'user' not in session:
         flash("请先登录以使用分析功能", "error")
         return redirect(url_for('login'))
@@ -646,12 +749,62 @@ def index():
                            user=session.get('user'))
 
 
+@app.route('/ai')
+def ai_page():
+    """AI chat page (Pro only). Chat-style UI, no history."""
+    if not session.get('user'):
+        return redirect(url_for('login'))
+    if not session.get('is_pro'):
+        flash(get_translation('ai_page_pro_required', get_current_language()), 'error')
+        return redirect(url_for('pricing'))
+    try:
+        from gemini_service import is_available as gemini_is_available
+        gemini_available = gemini_is_available()
+    except Exception:
+        gemini_available = False
+    return render_template('ai.html', gemini_available=gemini_available)
+
+
+@app.route('/ask_ai', methods=['POST'])
+def ask_ai():
+    """Pro-only: ask Gemini (with optional file search) about a number/car plate."""
+    if not session.get('user'):
+        return jsonify({'error': 'Login required'}), 401
+    if not session.get('is_pro'):
+        return jsonify({'error': 'Pro subscription required'}), 403
+    data = request.get_json(silent=True) or {}
+    question = (data.get('question') or request.form.get('question') or '').strip()
+    if not question:
+        return jsonify({'error': 'Question is required'}), 400
+    number_context = (data.get('number_context') or data.get('input_data') or request.form.get('number_context') or '').strip() or None
+    try:
+        from gemini_service import ask as gemini_ask
+        answer = gemini_ask(question, number_context=number_context)
+        return jsonify({'answer': answer})
+    except (ImportError, ModuleNotFoundError) as e:
+        err = str(e).strip() or 'google.genai not found'
+        return jsonify({
+            'error': (
+                'GenAI SDK not available in this Python environment. '
+                'Install with: pip install google-genai — then restart Flask using the *same* Python/venv (e.g. activate venv, run python app.py). '
+                'Detail: %s' % err
+            )
+        }), 503
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 503
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'GET':
-        return render_template('register.html')
+        ref = request.args.get('ref')
+        if ref:
+            session['referral_ref'] = ref.strip()[:20]
+        return render_template('register.html', ref=ref)
 
     email = password = None  # ✅ always declared
 
@@ -679,7 +832,23 @@ def register():
 
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
-    new_user = User(email=email, password=hashed_password)
+    # Referral: ref can be in query (?ref=CODE) or session (set when landing with ref)
+    ref_code = request.args.get('ref') or request.form.get('ref') or session.pop('referral_ref', None)
+    referred_by_id = None
+    if ref_code:
+        referrer = User.query.filter_by(referral_code=ref_code.upper()).first()
+        if referrer and referrer.email != email:
+            referred_by_id = referrer.id
+
+    new_user = User(email=email, password=hashed_password, referred_by_id=referred_by_id)
+    # Unique referral code for this user (for sharing)
+    for _ in range(5):
+        code = _generate_referral_code()
+        if not User.query.filter_by(referral_code=code).first():
+            new_user.referral_code = code
+            break
+    if not new_user.referral_code:
+        new_user.referral_code = _generate_referral_code() + str(new_user.id)[:2]
     db.session.add(new_user)
     db.session.commit()
 
@@ -700,7 +869,8 @@ def login():
 
         if user and bcrypt.check_password_hash(user.password, password):
             session['user'] = email
-            session['is_pro'] = user.is_pro  # ✅ set correctly here
+            session['is_pro'] = user.is_pro
+            session['is_admin'] = getattr(user, 'is_admin', False)
             return redirect(url_for('index'))
         else:
             flash("登录失败，请检查邮箱或密码", "error")
@@ -708,12 +878,95 @@ def login():
 
 
 
+def _send_password_reset_email(to_email, reset_url, lang='en'):
+    """Send reset link via SMTP. No-op if MAIL_SERVER not configured."""
+    if not app.config.get('MAIL_SERVER') or not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
+        return False
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = 'Reset your password - Numerology' if lang == 'en' else '重置密码 - 命理分析'
+        msg['From'] = app.config.get('MAIL_DEFAULT_SENDER') or app.config['MAIL_USERNAME']
+        msg['To'] = to_email
+        text = f"Reset your password: {reset_url}\nLink valid for 1 hour."
+        if lang == 'zh':
+            text = f"请点击以下链接重置密码：{reset_url}\n链接1小时内有效。"
+        msg.attach(MIMEText(text, 'plain', 'utf-8'))
+        with smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT']) as s:
+            if app.config.get('MAIL_USE_TLS'):
+                s.starttls()
+            s.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+            s.sendmail(msg['From'], to_email, msg.as_string())
+        return True
+    except Exception as e:
+        if app.debug:
+            print('Mail send failed:', e)
+        return False
+
+
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = (request.form.get('email') or '').strip().lower()
+        lang = get_current_language()
+        if not email:
+            flash('请输入邮箱', 'error') if lang == 'zh' else flash('Please enter your email', 'error')
+            return redirect(url_for('forgot_password'))
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            # Don't reveal whether email exists
+            flash('若该邮箱已注册，您将收到重置链接。请查收邮件。', 'success') if lang == 'zh' else flash('If that email is registered, you will receive a reset link. Check your inbox.', 'success')
+            return redirect(url_for('login'))
+        # Invalidate any existing tokens for this user
+        PasswordResetToken.query.filter_by(user_id=user.id).delete()
+        token_str = secrets.token_urlsafe(32)
+        expires = datetime.utcnow() + timedelta(hours=app.config['PASSWORD_RESET_EXPIRY_HOURS'])
+        t = PasswordResetToken(user_id=user.id, token=token_str, expires_at=expires)
+        db.session.add(t)
+        db.session.commit()
+        reset_url = request.url_root.rstrip('/') + url_for('reset_password', token=token_str)
+        if _send_password_reset_email(user.email, reset_url, lang):
+            flash('已发送重置链接到您的邮箱，请查收。', 'success') if lang == 'zh' else flash('A reset link has been sent to your email.', 'success')
+        else:
+            flash('邮件发送失败。请检查服务器邮件配置，或联系管理员。', 'error') if lang == 'zh' else flash('Failed to send email. Check server mail config or contact admin.', 'error')
+        return redirect(url_for('login'))
+    return render_template('forgot_password.html')
+
+
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    t = PasswordResetToken.query.filter_by(token=token).first()
+    if not t or t.used_at or t.expires_at < datetime.utcnow():
+        flash('链接无效或已过期，请重新申请重置密码。', 'error') if get_current_language() == 'zh' else flash('Link invalid or expired. Please request a new reset.', 'error')
+        return redirect(url_for('forgot_password'))
+    if request.method == 'POST':
+        password = request.form.get('password') or ''
+        if len(password) < 6:
+            flash('密码至少6位', 'error') if get_current_language() == 'zh' else flash('Password must be at least 6 characters', 'error')
+            return render_template('reset_password.html', token=token)
+        user = t.user
+        user.password = bcrypt.generate_password_hash(password).decode('utf-8')
+        t.used_at = datetime.utcnow()
+        db.session.commit()
+        flash('密码已更新，请登录。', 'success') if get_current_language() == 'zh' else flash('Password updated. Please log in.', 'success')
+        return redirect(url_for('login'))
+    return render_template('reset_password.html', token=token)
+
+
 @app.route('/logout')
 def logout():
     session.pop('user', None)
     session.pop('is_pro', None)
+    session.pop('is_admin', None)
     flash("已登出，请先登录以使用分析功能", "error")
     return redirect(url_for('login'))
+
+
+@app.route('/profile')
+def profile():
+    if not session.get('user'):
+        return redirect(url_for('login'))
+    return render_template('profile.html')
+
 
 @app.route('/clear_history', methods=['POST'])
 def clear_history():
@@ -774,9 +1027,111 @@ def upgrade_to_pro():
         flash("请先登录", "error")
     return redirect(url_for('index'))
 
+@app.route('/referral')
+def referral():
+    if not session.get('user'):
+        flash('请先登录', 'error')
+        return redirect(url_for('login'))
+    user = User.query.filter_by(email=session['user']).first()
+    if not user:
+        return redirect(url_for('login'))
+    if not user.referral_code:
+        for _ in range(5):
+            code = _generate_referral_code()
+            if not User.query.filter_by(referral_code=code).first():
+                user.referral_code = code
+                db.session.commit()
+                break
+    balance_cents = get_credit_balance_cents(user.id)
+    share_url = request.url_root.rstrip('/') + url_for('register') + '?ref=' + (user.referral_code or '')
+    referral_count = ReferralCreditGrant.query.filter_by(referrer_id=user.id).count()
+    return render_template('referral.html',
+        referral_code=user.referral_code,
+        share_url=share_url,
+        balance_cents=balance_cents,
+        referral_count=referral_count,
+        bonus_cents=REFERRAL_BONUS_CENTS)
+
 @app.route('/pricing')
 def pricing():
     return render_template('pricing.html')
+
+@app.route('/admin')
+@require_admin
+def admin_dashboard():
+    total_users = User.query.count()
+    pro_users = User.query.filter_by(is_pro=True).count()
+    total_referrals = ReferralCreditGrant.query.count()
+    voucher_available = Voucher.query.filter_by(status='AVAILABLE').count()
+    voucher_used = Voucher.query.filter_by(status='USED').count()
+    return render_template('admin/dashboard.html',
+        total_users=total_users, pro_users=pro_users,
+        total_referrals=total_referrals, voucher_available=voucher_available, voucher_used=voucher_used)
+
+@app.route('/admin/vouchers')
+@require_admin
+def admin_vouchers():
+    vouchers = Voucher.query.order_by(Voucher.created_at.desc()).all()
+    return render_template('admin/vouchers.html', vouchers=vouchers)
+
+@app.route('/admin/vouchers/create', methods=['GET', 'POST'])
+@require_admin
+def admin_voucher_create():
+    if request.method == 'POST':
+        code = (request.form.get('code') or '').strip().upper()
+        discount_percent = request.form.get('discount_percent', type=int)
+        valid_from_s = request.form.get('valid_from')
+        valid_until_s = request.form.get('valid_until')
+        if not code:
+            flash('请输入优惠码', 'error')
+            return redirect(url_for('admin_voucher_create'))
+        if Voucher.query.filter_by(code=code).first():
+            flash('该优惠码已存在', 'error')
+            return redirect(url_for('admin_voucher_create'))
+        if not (1 <= discount_percent <= 100):
+            flash('折扣比例须在 1-100 之间', 'error')
+            return redirect(url_for('admin_voucher_create'))
+        try:
+            valid_from = datetime.strptime(valid_from_s or '2000-01-01', '%Y-%m-%d')
+            valid_until = datetime.strptime(valid_until_s or '2099-12-31', '%Y-%m-%d')
+        except ValueError:
+            flash('日期格式错误', 'error')
+            return redirect(url_for('admin_voucher_create'))
+        if valid_until < valid_from:
+            flash('结束日期须晚于开始日期', 'error')
+            return redirect(url_for('admin_voucher_create'))
+        user = User.query.filter_by(email=session['user']).first()
+        v = Voucher(code=code, status='AVAILABLE', discount_percent=discount_percent,
+                    valid_from=valid_from, valid_until=valid_until, created_by_id=user.id if user else None)
+        db.session.add(v)
+        db.session.commit()
+        flash('优惠券已创建', 'success')
+        return redirect(url_for('admin_vouchers'))
+    return render_template('admin/voucher_create.html')
+
+@app.route('/admin/credit/grant', methods=['GET', 'POST'])
+@require_admin
+def admin_grant_credit():
+    if request.method == 'POST':
+        email = (request.form.get('email') or '').strip()
+        amount_cents = request.form.get('amount_cents', type=int) or 0
+        if not email or amount_cents <= 0:
+            flash('请输入有效邮箱和金额（分）', 'error')
+            return redirect(url_for('admin_grant_credit'))
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            flash('用户不存在', 'error')
+            return redirect(url_for('admin_grant_credit'))
+        admin_user = User.query.filter_by(email=session['user']).first()
+        db.session.add(CreditLedgerEntry(
+            user_id=user.id, type='CREDIT', amount_cents=amount_cents,
+            reference_type='admin_grant', reference_id=str(admin_user.id) if admin_user else None,
+            note='Admin grant'
+        ))
+        db.session.commit()
+        flash('已为用户 %s 充值 %s 分' % (email, amount_cents), 'success')
+        return redirect(url_for('admin_dashboard'))
+    return render_template('admin/grant_credit.html')
 
 @app.route('/contact')
 def contact():
@@ -789,12 +1144,80 @@ def set_language_route(language):
         set_language(language)
     return redirect(request.referrer or url_for('index'))
 
-""" @app.route('/upgrade')
-def upgrade():
-    if session.get('user'):
-        users[session['user']]['is_pro'] = True
-        flash("您已升级为大师版用户！", "success")
-    return redirect(url_for('index')) """
+def _validate_voucher(code):
+    """Returns (voucher, error_message). Voucher is None if invalid."""
+    if not code or not code.strip():
+        return None, None
+    v = Voucher.query.filter_by(code=code.strip().upper(), status='AVAILABLE').first()
+    if not v:
+        return None, 'Voucher not found or already used'
+    now = datetime.utcnow()
+    if v.valid_from and now < v.valid_from:
+        return None, 'Voucher not yet valid'
+    if v.valid_until and now > v.valid_until:
+        v.status = 'EXPIRED'
+        db.session.commit()
+        return None, 'Voucher has expired'
+    return v, None
+
+def _fulfill_order(order):
+    """Apply credit DEBIT, mark voucher USED, set user is_pro. Call with order locked/committed after."""
+    user = order.user
+    if order.credit_applied_cents > 0:
+        db.session.add(CreditLedgerEntry(
+            user_id=user.id, type='DEBIT', amount_cents=order.credit_applied_cents,
+            reference_type='purchase', reference_id=str(order.id), note='Subscription'
+        ))
+    if order.voucher_id:
+        v = Voucher.query.get(order.voucher_id)
+        if v:
+            v.status = 'USED'
+            v.used_at = datetime.utcnow()
+            v.used_by_id = user.id
+    user.is_pro = True
+    extend_days = 365 if order.plan == 'annual' else 30
+    if not user.pro_until or user.pro_until < datetime.utcnow():
+        user.pro_until = datetime.utcnow() + timedelta(days=extend_days)
+    else:
+        user.pro_until += timedelta(days=extend_days)
+    order.status = 'paid'
+    order.paid_at = datetime.utcnow()
+    db.session.commit()
+
+@app.route('/upgrade')
+def upgrade_success():
+    """Stripe success redirect: fulfill PendingOrder (credit/voucher), set is_pro."""
+    session_id = request.args.get('session_id')
+    if not session_id:
+        if session.get('user'):
+            flash('订阅成功！', 'success')
+        return redirect(url_for('index'))
+    try:
+        checkout = stripe.checkout.Session.retrieve(session_id)
+        customer_email = checkout.get('customer_email') or (checkout.get('customer') and stripe.Customer.retrieve(checkout['customer']).email)
+        if not customer_email and checkout.get('customer_details', {}).get('email'):
+            customer_email = checkout['customer_details']['email']
+    except Exception:
+        return redirect(url_for('index'))
+    if not customer_email:
+        return redirect(url_for('index'))
+    user = User.query.filter_by(email=customer_email).first()
+    if user:
+        order = PendingOrder.query.filter_by(stripe_session_id=session_id, user_id=user.id, status='pending').first()
+        if order:
+            _fulfill_order(order)
+        else:
+            user.is_pro = True
+            extend_days = 30
+            if not user.pro_until or user.pro_until < datetime.utcnow():
+                user.pro_until = datetime.utcnow() + timedelta(days=extend_days)
+            else:
+                user.pro_until += timedelta(days=extend_days)
+            db.session.commit()
+    if session.get('user') == customer_email:
+        session['is_pro'] = True
+    flash('订阅成功！感谢您的支持。', 'success')
+    return redirect(url_for('index'))
 
 @app.route('/upgrade/<int:user_id>', methods=['POST'])
 def upgrade(user_id):
@@ -811,30 +1234,79 @@ def upgrade(user_id):
     return jsonify({'message': f'User {user.email} upgraded to paid'}), 200
 
 
-@app.route('/subscribe/<plan>')
+@app.route('/subscribe/<plan>', methods=['GET', 'POST'])
 def subscribe(plan):
-    # Replace with your real Stripe price IDs
+    if plan not in PLAN_PRICE_CENTS:
+        flash('无效的订阅类型', 'error')
+        return redirect(url_for('pricing'))
+    base_cents = PLAN_PRICE_CENTS[plan]
     price_lookup = {
-        'monthly': 'price_1SAAlZPiKknSy39RarQrt1u2',  # ← replace with your monthly price ID
-        'annual': 'price_1SAAnuPiKknSy39R0c4IZRMp'   # ← replace with your annual price ID
+        'monthly': 'price_1SAAlZPiKknSy39RarQrt1u2',
+        'annual': 'price_1SAAnuPiKknSy39R0c4IZRMp'
     }
-
     price_id = price_lookup.get(plan)
     if not price_id:
         return "无效的订阅类型", 400
 
+    if not session.get('user'):
+        flash('请先登录', 'error')
+        return redirect(url_for('login'))
+
+    user = User.query.filter_by(email=session['user']).first()
+    if not user:
+        return redirect(url_for('login'))
+
+    voucher = None
+    discount_cents = 0
+    voucher_code = (request.form.get('voucher_code') or request.args.get('voucher_code') or '').strip()
+    if voucher_code:
+        voucher, err = _validate_voucher(voucher_code)
+        if err:
+            flash(err, 'error')
+            return redirect(url_for('pricing'))
+        if voucher:
+            discount_cents = base_cents * voucher.discount_percent // 100
+    after_discount = max(0, base_cents - discount_cents)
+
+    use_credit = request.form.get('use_credit') == '1' or request.args.get('use_credit') == '1'
+    credit_balance = get_credit_balance_cents(user.id)
+    credit_to_apply = min(credit_balance, after_discount) if use_credit else 0
+    final_cents = max(0, after_discount - credit_to_apply)
+
+    order = PendingOrder(
+        user_id=user.id, plan=plan, amount_cents=final_cents,
+        credit_applied_cents=credit_to_apply, voucher_id=voucher.id if voucher else None
+    )
+    db.session.add(order)
+    db.session.commit()
+
+    if final_cents == 0:
+        _fulfill_order(order)
+        session['is_pro'] = True
+        flash('已使用余额/优惠券完成升级！', 'success')
+        return redirect(url_for('index'))
+
     checkout_session = stripe.checkout.Session.create(
         payment_method_types=['card'],
         line_items=[{
-            'price': price_id,
+            'price_data': {
+                'currency': 'myr',
+                'unit_amount': final_cents,
+                'product_data': {
+                    'name': '大师版 ' + ('月付' if plan == 'monthly' else '年付'),
+                    'description': 'Numerology Master Plan'
+                },
+            },
             'quantity': 1,
         }],
-        mode='subscription',
+        mode='payment',
         success_url=YOUR_DOMAIN + '/upgrade?session_id={CHECKOUT_SESSION_ID}',
         cancel_url=YOUR_DOMAIN + '/pricing',
-        customer_email=session.get('user')  # Optional: pre-fill email if available
+        customer_email=session.get('user'),
+        metadata={'pending_order_id': str(order.id)}
     )
-
+    order.stripe_session_id = checkout_session.id
+    db.session.commit()
     return redirect(checkout_session.url, code=303)
 
 
@@ -879,20 +1351,40 @@ def stripe_webhook():
     # 🎯 Handle successful payment (subscription or renewal)
     if event['type'] == 'invoice.paid':
         invoice = event['data']['object']
-        subscription_id = invoice['subscription']
-        customer_email = invoice['customer_email']
+        subscription_id = invoice.get('subscription')
+        customer_email = invoice.get('customer_email')
 
         user = User.query.filter_by(email=customer_email).first()
         if user:
             user.is_pro = True
-            user.stripe_subscription_id = subscription_id
-            extend_days = 30  # You can adjust this based on pricing logic
-
+            if subscription_id:
+                user.stripe_subscription_id = subscription_id
+            extend_days = 30
             if not user.pro_until or user.pro_until < datetime.utcnow():
                 user.pro_until = datetime.utcnow() + timedelta(days=extend_days)
             else:
                 user.pro_until += timedelta(days=extend_days)
 
+            # Referral: grant referrer store credit once per referred user (idempotent)
+            if getattr(user, 'referred_by_id', None) and user.referred_by_id != user.id:
+                existing = ReferralCreditGrant.query.filter_by(
+                    referrer_id=user.referred_by_id, referred_user_id=user.id
+                ).first()
+                if not existing:
+                    entry = CreditLedgerEntry(
+                        user_id=user.referred_by_id,
+                        type='CREDIT',
+                        amount_cents=REFERRAL_BONUS_CENTS,
+                        reference_type='referral',
+                        reference_id=str(user.id),
+                        note='Referral bonus'
+                    )
+                    db.session.add(entry)
+                    db.session.add(ReferralCreditGrant(
+                        referrer_id=user.referred_by_id,
+                        referred_user_id=user.id,
+                        amount_cents=REFERRAL_BONUS_CENTS
+                    ))
             db.session.commit()
 
     return jsonify({'status': 'success'}), 200

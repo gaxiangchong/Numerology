@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}优惠券管理{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8 px-4">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-highlight">优惠券管理</h1>
+    <a href="{{ url_for('admin_voucher_create') }}" class="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition">创建优惠券</a>
+  </div>
+
+  <div class="bg-surface rounded-xl overflow-hidden">
+    <table class="min-w-full text-sm">
+      <thead class="bg-dark text-textlight">
+        <tr>
+          <th class="px-4 py-3 text-left">优惠码</th>
+          <th class="px-4 py-3 text-left">折扣</th>
+          <th class="px-4 py-3 text-left">有效期</th>
+          <th class="px-4 py-3 text-left">状态</th>
+        </tr>
+      </thead>
+      <tbody class="text-textlight">
+        {% for v in vouchers %}
+        <tr class="border-t border-soft">
+          <td class="px-4 py-3 font-mono">{{ v.code }}</td>
+          <td class="px-4 py-3">{{ v.discount_percent }}%</td>
+          <td class="px-4 py-3">{{ v.valid_from.strftime('%Y-%m-%d') if v.valid_from else '-' }} 至 {{ v.valid_until.strftime('%Y-%m-%d') if v.valid_until else '-' }}</td>
+          <td class="px-4 py-3">
+            <span class="px-2 py-1 rounded text-xs {% if v.status == 'AVAILABLE' %}bg-green-600{% elif v.status == 'USED' %}bg-gray-600{% elif v.status == 'EXPIRED' %}bg-red-600{% else %}bg-amber-600{% endif %}">{{ v.status }}</span>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="px-4 py-6 text-soft text-center">暂无优惠券</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}管理后台{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8 px-4">
+  <h1 class="text-2xl font-bold text-highlight mb-6">管理后台</h1>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="bg-surface rounded-xl p-4">
+      <p class="text-3xl font-bold text-textlight">{{ total_users }}</p>
+      <p class="text-soft text-sm">总用户数</p>
+    </div>
+    <div class="bg-surface rounded-xl p-4">
+      <p class="text-3xl font-bold text-green-400">{{ pro_users }}</p>
+      <p class="text-soft text-sm">大师版用户</p>
+    </div>
+    <div class="bg-surface rounded-xl p-4">
+      <p class="text-3xl font-bold text-blue-400">{{ total_referrals }}</p>
+      <p class="text-soft text-sm">推荐成功数</p>
+    </div>
+    <div class="bg-surface rounded-xl p-4">
+      <p class="text-3xl font-bold text-amber-400">{{ voucher_available }}</p>
+      <p class="text-soft text-sm">可用优惠券</p>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap gap-4">
+    <a href="{{ url_for('admin_vouchers') }}" class="px-6 py-3 rounded-lg bg-highlight text-white font-medium hover:bg-blue-700 transition">优惠券管理</a>
+    <a href="{{ url_for('admin_voucher_create') }}" class="px-6 py-3 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 transition">创建优惠券</a>
+    <a href="{{ url_for('admin_grant_credit') }}" class="px-6 py-3 rounded-lg bg-amber-600 text-white font-medium hover:bg-amber-700 transition">充值余额</a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ t('profile_title') }}{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto space-y-6">
+  <h1 class="text-2xl font-bold text-highlight">{{ t('profile_title') }}</h1>
+
+  <!-- Balance card -->
+  <section class="bg-surface rounded-xl shadow-lg p-6 border border-soft/50" aria-labelledby="profile-balance-heading">
+    <h2 id="profile-balance-heading" class="text-sm font-medium text-soft uppercase tracking-wide mb-2">{{ t('profile_balance_label') }}</h2>
+    <p class="text-2xl font-bold text-textlight">RM{{ "%.2f"|format(credit_balance_cents / 100) }}</p>
+  </section>
+
+  <!-- Settings: Language -->
+  <section class="bg-surface rounded-xl shadow-lg p-6 border border-soft/50" aria-labelledby="profile-settings-heading">
+    <h2 id="profile-settings-heading" class="text-sm font-medium text-soft uppercase tracking-wide mb-4">{{ t('profile_settings_title') }}</h2>
+    <p class="text-textlight mb-3">{{ t('profile_language_label') }}</p>
+    <div class="flex flex-wrap gap-3">
+      <a href="/set_language/en" class="min-h-[var(--touch-min)] min-w-[44px] inline-flex items-center justify-center px-5 py-3 rounded-lg text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-surface {{ 'bg-highlight text-white' if current_language == 'en' else 'bg-dark text-textlight hover:bg-gray-700 border border-soft' }}">
+        EN
+      </a>
+      <a href="/set_language/zh" class="min-h-[var(--touch-min)] min-w-[44px] inline-flex items-center justify-center px-5 py-3 rounded-lg text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-surface {{ 'bg-highlight text-white' if current_language == 'zh' else 'bg-dark text-textlight hover:bg-gray-700 border border-soft' }}">
+        中文
+      </a>
+    </div>
+  </section>
+
+  <!-- Logout -->
+  <section class="pt-2">
+    <a href="{{ url_for('logout') }}" class="block w-full min-h-[var(--touch-min)] flex items-center justify-center px-6 py-3 rounded-xl bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/40 transition-colors focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-dark font-medium">
+      {{ t('btn_logout') }}
+    </a>
+  </section>
+</div>
+{% endblock %}

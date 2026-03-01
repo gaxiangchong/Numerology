@@ -10,7 +10,7 @@
     <div class="flex items-center justify-between">
       <span>{{ t('upgrade_banner')|safe }}</span>
       <form method="POST" action="/upgrade_to_pro" class="inline">
-        <button type="submit" class="ml-4 bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">
+        <button type="submit" class="ml-4 bg-green-500 hover:bg-green-600 text-white px-4 py-2 min-h-[44px] rounded-lg text-sm transition focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 focus-visible:ring-offset-dark">
           {{ t('btn_test_upgrade') }}
         </button>
       </form>
@@ -22,14 +22,18 @@
   <h1 class="text-3xl font-bold text-textlight mb-6 text-center">{{ t('main_title') }}</h1>
 
   <!-- 📝 Input Form -->
-  <form method="POST" class="bg-surface p-6 rounded-xl shadow-lg space-y-4 mb-10">
+  <form method="POST" id="analyze-form" class="bg-surface p-6 rounded-xl shadow-lg space-y-4 mb-10">
     <label for="input_data" class="block text-lg text-textlight font-semibold">{{ t('input_label') }}</label>
     <input type="text" id="input_data" name="input_data" required
-           class="w-full px-4 py-2 rounded-md bg-dark border border-soft text-textlight focus:ring-2 focus:ring-highlight outline-none" 
-           placeholder="{{ t('input_placeholder') }}" />
-    <button type="submit"
-            class="w-full bg-highlight hover:bg-blue-700 text-white font-semibold py-2 rounded-md transition-all">
-      {{ t('btn_analyze') }}
+           class="w-full px-4 py-3 rounded-md bg-dark border border-soft text-textlight focus:ring-2 focus:ring-highlight focus:border-highlight outline-none transition-shadow min-h-[44px]"
+           placeholder="{{ t('input_placeholder') }}"
+           aria-describedby="input_hint"
+           autocomplete="off" />
+    <p id="input_hint" class="text-soft text-sm sr-only">Enter license plate, phone number, or any number combination to analyze.</p>
+    <button type="submit" id="analyze-btn"
+            class="w-full bg-highlight hover:bg-blue-700 text-white font-semibold py-3 rounded-md transition-all min-h-[44px] focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-70 disabled:cursor-not-allowed"
+            aria-busy="false" data-loading-text="{{ t('btn_analyzing') }}">
+      <span class="btn-text">{{ t('btn_analyze') }}</span>
     </button>
   </form>
 
@@ -40,7 +44,7 @@
       <h3 class="text-lg font-semibold text-highlight">📚 {{ t('recent_numbers') }}</h3>
       {% if recent_numbers %}
       <form method="POST" action="/clear_history" class="inline">
-        <button type="submit" class="text-sm text-soft hover:text-highlight transition" onclick="return confirm('{{ t('confirm_clear_history') }}')">
+        <button type="submit" class="text-sm text-soft hover:text-highlight transition min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-2 focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-surface rounded" onclick="return confirm('{{ t('confirm_clear_history') }}')">
           {{ t('btn_clear_history') }}
         </button>
       </form>
@@ -50,8 +54,8 @@
     {% if recent_numbers %}
     <div class="flex flex-wrap gap-2">
       {% for number in recent_numbers %}
-      <button onclick="fillInput('{{ number }}')" 
-              class="px-3 py-1 bg-dark border border-soft rounded-full text-sm hover:bg-highlight hover:text-white transition">
+      <button type="button" onclick="fillInput('{{ number }}')" 
+              class="px-4 py-2 min-h-[44px] bg-dark border border-soft rounded-full text-sm hover:bg-highlight hover:text-white transition focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
         {{ number }}
       </button>
       {% endfor %}
@@ -75,13 +79,14 @@
     <div class="bg-surface p-5 rounded-xl shadow">
       <h2 class="text-xl font-bold text-highlight mb-2">🔍 {{ t('energy_analysis') }}</h2>
 
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto" role="region" aria-label="{{ t('energy_analysis') }}">
         <table class="min-w-full text-sm text-left border border-gray-700 rounded overflow-hidden">
+          <caption class="sr-only">{{ t('energy_analysis') }} {{ t('combination_type') }}, {{ t('number_combination') }}, {{ t('total_energy') }}</caption>
           <thead class="bg-gray-800 text-textlight">
             <tr>
-              <th class="px-4 py-2 border-b border-gray-600">{{ t('combination_type') }}</th>
-              <th class="px-4 py-2 border-b border-gray-600">{{ t('number_combination') }}</th>
-              <th class="px-4 py-2 border-b border-gray-600">{{ t('total_energy') }}</th>
+              <th scope="col" class="px-4 py-2 border-b border-gray-600">{{ t('combination_type') }}</th>
+              <th scope="col" class="px-4 py-2 border-b border-gray-600">{{ t('number_combination') }}</th>
+              <th scope="col" class="px-4 py-2 border-b border-gray-600">{{ t('total_energy') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -189,40 +194,86 @@
 
       <!-- 📖 详细磁场分析 -->
       {% if sorted_profiles and is_pro %}
-      <div class="bg-surface p-5 rounded-xl shadow">
-        <h2 class="text-xl font-bold text-purple-400 mb-4">📖 详细磁场分析</h2>
-        <div class="space-y-6">
+      <section class="bg-surface rounded-xl shadow-lg overflow-hidden" aria-labelledby="detail-analysis-heading">
+        <div class="px-5 pt-5 pb-2">
+          <h2 id="detail-analysis-heading" class="text-xl font-bold text-purple-400">📖 详细磁场分析</h2>
+          <p class="text-soft text-sm mt-1">按能量占比从高到低展示各磁场特质，点击标签查看不同维度</p>
+        </div>
+        <div class="p-5 pt-2 space-y-8">
           {% for group, description, percent in sorted_profiles %}
-          <div class="border border-gray-600 rounded-lg p-4">
-            <h3 class="text-lg font-bold text-highlight mb-3">{{ description.title }} ({{ percent }}%)</h3>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="space-y-3">
-                <div>
-                  <h4 class="font-semibold text-green-400 mb-1">✅ 优点：</h4>
-                  <p class="text-textlight text-sm">{{ description.优点 }}</p>
-                </div>
-                <div>
-                  <h4 class="font-semibold text-blue-400 mb-1">💼 事业：</h4>
-                  <p class="text-textlight text-sm">{{ description.事业 }}</p>
-                </div>
-              </div>
-              
-              <div class="space-y-3">
-                <div>
-                  <h4 class="font-semibold text-red-400 mb-1">❌ 缺点：</h4>
-                  <p class="text-textlight text-sm">{{ description.缺点 }}</p>
-                </div>
-                <div>
-                  <h4 class="font-semibold text-yellow-400 mb-1">🏥 健康：</h4>
-                  <p class="text-textlight text-sm">{{ description.健康 }}</p>
-                </div>
-              </div>
+          {% set card_id = 'detail-card-' ~ loop.index0 %}
+          <article class="detail-magnetic-card bg-dark/50 rounded-xl border border-soft/50 overflow-hidden" data-card-id="{{ card_id }}" data-active-tab="0">
+            <!-- 卡片标题 + 占比 -->
+            <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-4 border-b border-soft/50">
+              <h3 class="text-lg font-bold text-highlight">{{ description.title }}</h3>
+              <span class="inline-flex items-center rounded-full bg-highlight/20 text-highlight px-3 py-1 text-sm font-medium" aria-label="能量占比 {{ percent }}%">{{ percent }}%</span>
             </div>
-          </div>
+            <!-- 标签栏 -->
+            <div role="tablist" aria-label="{{ description.title }} 分析维度" class="flex border-b border-soft/50 bg-dark/30">
+              <button role="tab" id="{{ card_id }}-tab-0" aria-selected="true" aria-controls="{{ card_id }}-panel-0" tabindex="0" data-tab-index="0" class="detail-tab flex-1 min-h-[44px] px-4 py-3 text-sm font-medium text-soft border-b-2 border-transparent hover:text-green-400 hover:bg-green-400/5 transition-colors focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-inset">优点</button>
+              <button role="tab" id="{{ card_id }}-tab-1" aria-selected="false" aria-controls="{{ card_id }}-panel-1" tabindex="-1" data-tab-index="1" class="detail-tab flex-1 min-h-[44px] px-4 py-3 text-sm font-medium text-soft border-b-2 border-transparent hover:text-blue-400 hover:bg-blue-400/5 transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-inset">事业</button>
+              <button role="tab" id="{{ card_id }}-tab-2" aria-selected="false" aria-controls="{{ card_id }}-panel-2" tabindex="-1" data-tab-index="2" class="detail-tab flex-1 min-h-[44px] px-4 py-3 text-sm font-medium text-soft border-b-2 border-transparent hover:text-amber-400 hover:bg-amber-400/5 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-inset">缺点</button>
+              <button role="tab" id="{{ card_id }}-tab-3" aria-selected="false" aria-controls="{{ card_id }}-panel-3" tabindex="-1" data-tab-index="3" class="detail-tab flex-1 min-h-[44px] px-4 py-3 text-sm font-medium text-soft border-b-2 border-transparent hover:text-cyan-400 hover:bg-cyan-400/5 transition-colors focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-inset">健康</button>
+            </div>
+            <!-- 内容面板 -->
+            <div id="{{ card_id }}-panel-0" role="tabpanel" aria-labelledby="{{ card_id }}-tab-0" class="detail-panel p-5" data-panel-index="0">
+              <p class="text-textlight text-sm leading-relaxed">{{ description.优点 }}</p>
+            </div>
+            <div id="{{ card_id }}-panel-1" role="tabpanel" aria-labelledby="{{ card_id }}-tab-1" class="detail-panel hidden p-5" data-panel-index="1" hidden>
+              <p class="text-textlight text-sm leading-relaxed">{{ description.事业 }}</p>
+            </div>
+            <div id="{{ card_id }}-panel-2" role="tabpanel" aria-labelledby="{{ card_id }}-tab-2" class="detail-panel hidden p-5" data-panel-index="2" hidden>
+              <p class="text-textlight text-sm leading-relaxed">{{ description.缺点 }}</p>
+            </div>
+            <div id="{{ card_id }}-panel-3" role="tabpanel" aria-labelledby="{{ card_id }}-tab-3" class="detail-panel hidden p-5" data-panel-index="3" hidden>
+              <p class="text-textlight text-sm leading-relaxed">{{ description.健康 }}</p>
+            </div>
+          </article>
           {% endfor %}
         </div>
-      </div>
+      </section>
+      <style>
+        .detail-magnetic-card[data-active-tab="0"] .detail-tab:nth-child(1) { color: rgb(74 222 128); border-bottom-color: rgb(74 222 128); background-color: rgba(74, 222, 128, 0.1); }
+        .detail-magnetic-card[data-active-tab="1"] .detail-tab:nth-child(2) { color: rgb(96 165 250); border-bottom-color: rgb(96 165 250); background-color: rgba(96, 165, 250, 0.1); }
+        .detail-magnetic-card[data-active-tab="2"] .detail-tab:nth-child(3) { color: rgb(251 191 36); border-bottom-color: rgb(251 191 36); background-color: rgba(251, 191, 36, 0.1); }
+        .detail-magnetic-card[data-active-tab="3"] .detail-tab:nth-child(4) { color: rgb(34 211 238); border-bottom-color: rgb(34 211 238); background-color: rgba(34, 211, 238, 0.1); }
+      </style>
+      <script>
+      (function() {
+        var cards = document.querySelectorAll('.detail-magnetic-card');
+        cards.forEach(function(card) {
+          var tabs = card.querySelectorAll('.detail-tab');
+          var panels = card.querySelectorAll('.detail-panel');
+          function switchTo(index) {
+            card.setAttribute('data-active-tab', String(index));
+            tabs.forEach(function(t, i) {
+              var isActive = i === index;
+              t.setAttribute('aria-selected', isActive);
+              t.setAttribute('tabindex', isActive ? 0 : -1);
+            });
+            panels.forEach(function(p, i) {
+              if (i === index) {
+                p.classList.remove('hidden');
+                p.removeAttribute('hidden');
+              } else {
+                p.classList.add('hidden');
+                p.setAttribute('hidden', '');
+              }
+            });
+          }
+          tabs.forEach(function(tab, i) {
+            tab.addEventListener('click', function() { switchTo(i); });
+            tab.addEventListener('keydown', function(e) {
+              var idx = parseInt(tab.getAttribute('data-tab-index'), 10);
+              if (e.key === 'ArrowRight' && idx < 3) { e.preventDefault(); switchTo(idx + 1); tabs[idx + 1].focus(); }
+              if (e.key === 'ArrowLeft' && idx > 0) { e.preventDefault(); switchTo(idx - 1); tabs[idx - 1].focus(); }
+              if (e.key === 'Home') { e.preventDefault(); switchTo(0); tabs[0].focus(); }
+              if (e.key === 'End') { e.preventDefault(); switchTo(3); tabs[3].focus(); }
+            });
+          });
+        });
+      })();
+      </script>
       {% endif %}
     {% endif %}
 
@@ -232,9 +283,21 @@
 <script>
 function fillInput(number) {
   document.getElementById('input_data').value = number;
-  // Optional: Auto-submit the form
-  // document.querySelector('form').submit();
 }
+
+(function() {
+  var form = document.getElementById('analyze-form');
+  if (!form) return;
+  var btn = document.getElementById('analyze-btn');
+  var btnText = btn && btn.querySelector('.btn-text');
+  form.addEventListener('submit', function() {
+    if (btn && btnText) {
+      btn.setAttribute('aria-busy', 'true');
+      btn.disabled = true;
+      btnText.textContent = btn.getAttribute('data-loading-text') || 'Analyzing...';
+    }
+  });
+})();
 </script>
 
 {% endblock %}

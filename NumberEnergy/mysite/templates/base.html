@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#3b82f6">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Numerology">
+    <meta name="apple-mobile-web-app-title" content="易数">
     <meta name="msapplication-TileColor" content="#3b82f6">
     <meta name="msapplication-config" content="/static/browserconfig.xml">
     
@@ -47,79 +47,77 @@
             }
         }
     </script>
+    <!-- UX: focus visibility, reduced motion, touch targets -->
+    <style>
+        :root { --focus-ring: 2px solid #3B82F6; --touch-min: 44px; }
+        *:focus { outline: none; }
+        *:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+        }
+    </style>
 </head>
 <body class="bg-dark text-textlight font-sans min-h-screen py-10 px-4">
 
     <div class="max-w-4xl mx-auto">
         <!-- Navbar -->
         <header class="flex items-center justify-between px-4 py-4 bg-surface rounded-xl mb-6 shadow">
-            <div class="flex items-center space-x-3">
-                <img src="/static/EVER green3.png" alt="Logo" class="h-10 w-10 rounded-full border border-highlight">
+            <a href="/" class="flex items-center space-x-3 hover:opacity-90 transition-opacity focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-surface rounded-lg" aria-label="{{ t('logo_text') }} {{ t('nav_home') }}">
+                <img src="/static/EVER green3.png" alt="" class="h-10 w-10 rounded-full border border-highlight" aria-hidden="true">
                 <span class="text-xl font-bold text-highlight">{{ t('logo_text') }}</span>
                 {% if session.get('is_pro') %}
                     <span class="ml-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">{{ t('pro_badge') }}</span>
                 {% elif session.get('user') %}
                     <span class="ml-2 bg-gray-600 text-white text-xs px-2 py-1 rounded">{{ t('free_badge') }}</span>
                 {% endif %}
-            </div>
+            </a>
 
             <!-- Desktop Navigation -->
             <nav class="hidden md:flex items-center space-x-6 text-textlight text-base">
-                <a href="/" class="hover:text-highlight transition">{{ t('nav_home') }}</a>
+                <a href="/app" class="hover:text-highlight transition">{{ t('nav_home') }}</a>
                 <a href="/pricing" class="hover:text-highlight transition">{{ t('nav_pricing') }}</a>
                 <a href="/contact" class="hover:text-highlight transition">{{ t('nav_contact') }}</a>
                 {% if session.get('user') %}
-                    <a href="/logout" class="hover:text-highlight transition">{{ t('nav_logout') }}</a>
+                    <a href="/referral" class="hover:text-highlight transition">{{ t('nav_referral') }}</a>
+                    {% if session.get('is_pro') %}
+                    <a href="/ai" class="hover:text-highlight transition">{{ t('nav_ai') }}</a>
+                    {% endif %}
+                    <a href="/profile" class="hover:text-highlight transition">{{ t('nav_profile') }}</a>
+                    {% if is_admin %}
+                    <a href="/admin" class="hover:text-amber-400 transition">{{ t('nav_admin') }}</a>
+                    {% endif %}
                 {% else %}
                     <a href="/login" class="hover:text-highlight transition">{{ t('nav_login') }}</a>
                 {% endif %}
                 
                 <!-- PWA Install Button -->
-                <button id="install-button" class="hidden bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition" onclick="showInstallPrompt()">
+                <button id="install-button" type="button" class="hidden bg-green-600 hover:bg-green-700 text-white px-4 py-2 min-h-[var(--touch-min)] rounded-lg text-sm transition focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface" onclick="showInstallPrompt()" aria-label="Install app">
                     📱 Install App
                 </button>
-                
-                <!-- Language Switcher -->
-                <div class="flex items-center space-x-2 ml-4">
-                    <a href="/set_language/en" class="text-xs px-2 py-1 rounded {{ 'bg-highlight text-white' if current_language == 'en' else 'hover:bg-dark' }} transition">
-                        EN
-                    </a>
-                    <a href="/set_language/zh" class="text-xs px-2 py-1 rounded {{ 'bg-highlight text-white' if current_language == 'zh' else 'hover:bg-dark' }} transition">
-                        中文
-                    </a>
-                </div>
             </nav>
 
-            <!-- Mobile Menu Button -->
-            <button id="mobile-menu-button" class="md:hidden flex flex-col items-center justify-center w-8 h-8 space-y-1">
-                <span class="block w-6 h-0.5 bg-textlight transition-all duration-300"></span>
-                <span class="block w-6 h-0.5 bg-textlight transition-all duration-300"></span>
-                <span class="block w-6 h-0.5 bg-textlight transition-all duration-300"></span>
+            <!-- Mobile Menu Button (min 44px touch target) -->
+            <button id="mobile-menu-button" type="button" class="md:hidden flex flex-col items-center justify-center min-w-[var(--touch-min)] min-h-[var(--touch-min)] w-11 h-11 rounded-lg text-textlight hover:bg-dark focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-surface transition-colors" aria-expanded="false" aria-controls="mobile-menu" aria-label="{{ t('nav_menu_open') }}" data-label-open="{{ t('nav_menu_open') }}" data-label-close="{{ t('nav_menu_close') }}">
+                <span class="block w-6 h-0.5 bg-textlight transition-all duration-300" aria-hidden="true"></span>
+                <span class="block w-6 h-0.5 bg-textlight transition-all duration-300" aria-hidden="true"></span>
+                <span class="block w-6 h-0.5 bg-textlight transition-all duration-300" aria-hidden="true"></span>
             </button>
         </header>
 
         <!-- Mobile Navigation Menu -->
-        <div id="mobile-menu" class="md:hidden hidden bg-surface rounded-xl mb-6 shadow-lg overflow-hidden">
+        <div id="mobile-menu" class="md:hidden hidden bg-surface rounded-xl mb-6 shadow-lg overflow-hidden" role="dialog" aria-label="{{ t('nav_menu') }}">
             <nav class="flex flex-col space-y-1 p-4">
-                <a href="/" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg">{{ t('nav_home') }}</a>
+                <a href="/app" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_home') }}</a>
                 <a href="/pricing" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg">{{ t('nav_pricing') }}</a>
                 <a href="/contact" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg">{{ t('nav_contact') }}</a>
                 {% if session.get('user') %}
-                    <a href="/logout" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg">{{ t('nav_logout') }}</a>
+                    <a href="/referral" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_referral') }}</a>
+                    {% if session.get('is_pro') %}<a href="/ai" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_ai') }}</a>{% endif %}
+                    <a href="/profile" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_profile') }}</a>
+                    {% if is_admin %}<a href="/admin" class="block px-4 py-3 text-amber-400 hover:bg-dark transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_admin') }}</a>{% endif %}
                 {% else %}
-                    <a href="/login" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg">{{ t('nav_login') }}</a>
+                    <a href="/login" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_login') }}</a>
                 {% endif %}
-                
-                <!-- Mobile Language Switcher -->
-                <div class="flex items-center justify-center space-x-2 px-4 py-3 border-t border-soft">
-                    <span class="text-sm text-gray-400">Language:</span>
-                    <a href="/set_language/en" class="text-xs px-3 py-1 rounded {{ 'bg-highlight text-white' if current_language == 'en' else 'bg-dark hover:bg-gray-700' }} transition">
-                        EN
-                    </a>
-                    <a href="/set_language/zh" class="text-xs px-3 py-1 rounded {{ 'bg-highlight text-white' if current_language == 'zh' else 'bg-dark hover:bg-gray-700' }} transition">
-                        中文
-                    </a>
-                </div>
             </nav>
         </div>
 
@@ -127,7 +125,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="mb-4 p-3 rounded bg-surface border border-soft {{ 'text-green-400' if category == 'success' else 'text-orange-600' }}">
+              <div class="mb-4 p-3 rounded bg-surface border border-soft {{ 'text-green-400' if category == 'success' else 'text-orange-600' }}" role="alert" aria-live="polite">
                 {{ message }}
               </div>
             {% endfor %}
@@ -145,8 +143,11 @@
             const menuLines = mobileMenuButton.querySelectorAll('span');
 
             mobileMenuButton.addEventListener('click', function() {
+                const isOpen = !mobileMenu.classList.contains('hidden');
                 mobileMenu.classList.toggle('hidden');
-                
+                mobileMenuButton.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+                mobileMenuButton.setAttribute('aria-label', isOpen ? (mobileMenuButton.dataset.labelOpen || 'Open menu') : (mobileMenuButton.dataset.labelClose || 'Close menu'));
+
                 // Animate hamburger menu
                 if (mobileMenu.classList.contains('hidden')) {
                     // Close animation
@@ -166,7 +167,8 @@
             mobileNavLinks.forEach(link => {
                 link.addEventListener('click', function() {
                     mobileMenu.classList.add('hidden');
-                    // Reset hamburger menu
+                    mobileMenuButton.setAttribute('aria-expanded', 'false');
+                    mobileMenuButton.setAttribute('aria-label', mobileMenuButton.dataset.labelOpen || 'Open menu');
                     menuLines[0].style.transform = 'rotate(0deg) translateY(0)';
                     menuLines[1].style.opacity = '1';
                     menuLines[2].style.transform = 'rotate(0deg) translateY(0)';
@@ -177,7 +179,20 @@
             document.addEventListener('click', function(event) {
                 if (!mobileMenuButton.contains(event.target) && !mobileMenu.contains(event.target)) {
                     mobileMenu.classList.add('hidden');
-                    // Reset hamburger menu
+                    mobileMenuButton.setAttribute('aria-expanded', 'false');
+                    mobileMenuButton.setAttribute('aria-label', mobileMenuButton.dataset.labelOpen || 'Open menu');
+                    menuLines[0].style.transform = 'rotate(0deg) translateY(0)';
+                    menuLines[1].style.opacity = '1';
+                    menuLines[2].style.transform = 'rotate(0deg) translateY(0)';
+                }
+            });
+
+            // Close menu on Escape
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && !mobileMenu.classList.contains('hidden')) {
+                    mobileMenu.classList.add('hidden');
+                    mobileMenuButton.setAttribute('aria-expanded', 'false');
+                    mobileMenuButton.setAttribute('aria-label', mobileMenuButton.dataset.labelOpen || 'Open menu');
                     menuLines[0].style.transform = 'rotate(0deg) translateY(0)';
                     menuLines[1].style.opacity = '1';
                     menuLines[2].style.transform = 'rotate(0deg) translateY(0)';
