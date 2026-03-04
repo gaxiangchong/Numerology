@@ -17,6 +17,6 @@ from app import app
 
 if __name__ == '__main__':
     print("Starting Flask app locally...")
-    print("Open your browser and go to: http://127.0.0.1:5000")
+    print("Open your browser and go to: http://127.0.0.1:8050")
     print("Press Ctrl+C to stop the server")
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    app.run(debug=True, host='127.0.0.1', port=8050)

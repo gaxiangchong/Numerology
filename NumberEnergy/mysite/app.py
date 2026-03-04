@@ -49,7 +49,7 @@ except ImportError:
 # Replace with your real test keys
 stripe.api_key = "sk_test_51SA4PtPiKknSy39RC5uqzBKr1PSAEG2iCzlhtOKI0b6zK8qpECGCw1nZpq3tHZwbIDrDIK8hhZ8xofYucSmIJsg100FI2lDUDD"
 
-YOUR_DOMAIN = "http://127.0.0.1:5000"
+YOUR_DOMAIN = "http://127.0.0.1:8050"
 
 app = Flask(__name__)
 
@@ -1382,4 +1382,4 @@ def stripe_webhook():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='127.0.0.1', port=8050)
