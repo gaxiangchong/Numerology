@@ -9,28 +9,35 @@
     <p class="text-gray-300 text-lg mb-6">
       {{ t('pricing_subtitle') }}
     </p>
-    <div class="bg-green-600 text-white px-6 py-3 rounded-lg inline-block">
-      <span class="font-semibold">🎉 {{ t('special_offer') }}</span> {{ t('new_user_trial') }}
+    <div class="bg-blue-900/50 border border-blue-400 rounded-lg px-6 py-4 mb-4 inline-block text-left">
+      <p class="text-gray-200 font-medium">📌 {{ t('credits_info_title') }}</p>
+      <p class="text-sm text-gray-300">· {{ t('credits_number_cost') }}</p>
+      <p class="text-sm text-gray-300">· {{ t('credits_ai_cost') }}</p>
+      <p class="text-sm text-gray-300">· {{ t('credits_referral_line') }}</p>
     </div>
+    {% if session.get('user') and credit_balance is defined %}
+    <p class="text-gray-400">{{ t('credits_balance_label') }} <strong class="text-green-400">{{ credit_balance }}</strong></p>
+    {% endif %}
   </div>
 
   <!-- Pricing Cards: desktop = equal height, buttons aligned at bottom -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 md:items-stretch">
 
     <!-- 🟩 Free Plan -->
-    <div class="bg-gray-800 p-8 rounded-xl shadow-lg flex flex-col {% if not is_pro %}border-2 border-green-400{% else %}border border-soft{% endif %} relative">
-      {% if not is_pro %}<div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-green-400 text-white px-4 py-1 rounded-full text-sm font-semibold">{{ t('current_plan') }}</div>{% endif %}
+    <div class="bg-gray-800 p-8 rounded-xl shadow-lg flex flex-col {% if user_plan == 'free' and not is_pro %}border-2 border-green-400{% else %}border border-soft{% endif %} relative">
+      {% if user_plan == 'free' and not is_pro %}<div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-green-400 text-white px-4 py-1 rounded-full text-sm font-semibold">{{ t('current_plan') }}</div>{% endif %}
       <div class="text-center flex flex-col flex-1 min-h-0">
         <h2 class="text-2xl font-bold text-green-400 mb-2">{{ t('free_plan') }}</h2>
         <p class="text-gray-300 mb-6">{{ t('perfect_for_starting') }}</p>
         <div class="mb-6">
-          <span class="text-4xl font-bold text-white">{{ t('free_forever').split(' /')[0] }}</span>
-          <span class="text-gray-400">{{ t('free_forever').split(' /')[1] if ' /' in t('free_forever') else '/ forever' }}</span>
+          <span class="text-4xl font-bold text-white">0</span>
+          <span class="text-gray-400"> RM / {{ t('per_month') }}</span>
         </div>
+        <div class="text-sm text-green-400 mb-2">{{ t('credits_per_month_10') }}</div>
         <div class="text-left mb-6 space-y-3 flex-1">
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
-            <span class="text-gray-300">{{ t('feature_basic_analysis') }}</span>
+            <span class="text-gray-300">{{ t('feature_basic_analysis_credits') }}</span>
           </div>
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
@@ -42,7 +49,7 @@
           </div>
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
-            <span class="text-gray-300">{{ t('feature_mobile') }}</span>
+            <span class="text-gray-300">{{ t('ai_question_credits') }}</span>
           </div>
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
@@ -54,7 +61,7 @@
           <a href="/register" class="flex items-center justify-center min-h-[44px] w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800">
             {{ t('get_started_free') }}
           </a>
-        {% elif not is_pro %}
+        {% elif user_plan == 'free' %}
           <span class="inline-block w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold text-center min-h-[44px] flex items-center justify-center">
             {{ t('currently_using') }}
           </span>
@@ -70,17 +77,18 @@
         <h2 class="text-2xl font-bold text-blue-400 mb-2">{{ t('master_monthly') }}</h2>
         <p class="text-gray-300 mb-6">{{ t('unlock_all_features') }}</p>
         <div class="mb-6">
-          <span class="text-4xl font-bold text-white">RM68</span>
-          <span class="text-gray-400">{{ t('per_month') }}</span>
+          <span class="text-4xl font-bold text-white">RM19.90</span>
+          <span class="text-gray-400"> {{ t('per_month') }}</span>
         </div>
+        <div class="text-sm text-blue-400 mb-2">{{ t('credits_per_month_50') }}</div>
         <div class="text-left mb-6 space-y-3 flex-1">
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
-            <span class="text-gray-300">{{ t('free_plan') }} {{ t('feature_basic_analysis') }}</span>
+            <span class="text-gray-300">{{ t('all_free_features') }}</span>
           </div>
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
-            <span class="text-gray-300">{{ t('feature_ai_chat') }}</span>
+            <span class="text-gray-300">{{ t('feature_ai_chat') }} ({{ t('ai_question_credits') }})</span>
           </div>
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
@@ -96,24 +104,17 @@
           </div>
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
-            <span class="text-gray-300">{{ t('feature_personality') }}</span>
-          </div>
-          <div class="flex items-center text-sm">
-            <span class="text-green-400 mr-2">✓</span>
-            <span class="text-gray-300">{{ t('feature_career_health') }}</span>
-          </div>
-          <div class="flex items-center text-sm">
-            <span class="text-green-400 mr-2">✓</span>
-            <span class="text-gray-300">{{ t('feature_recommendations') }}</span>
+            <span class="text-gray-300">{{ t('invite_friend_50') }}</span>
           </div>
         </div>
         <div class="mt-auto pt-4">
-        {% if session.get('user') and not is_pro %}
+        {% if session.get('user') and user_plan != 'monthly' %}
         <form method="POST" action="/subscribe/monthly" class="space-y-2">
-          <input type="text" name="voucher_code" placeholder="优惠码（可选）" class="w-full px-3 py-2 rounded bg-dark border border-soft text-textlight text-sm">
+          <input type="text" name="voucher_code" placeholder="{{ t('voucher_placeholder') }}" class="w-full px-3 py-2 rounded bg-dark border border-soft text-textlight text-sm">
           {% if credit_balance_cents > 0 %}
+          {% set balance_rm = "%.2f"|format(credit_balance_cents / 100) %}
           <label class="flex items-center gap-2 text-sm text-gray-300">
-            <input type="checkbox" name="use_credit" value="1"> 使用余额 (RM{{ "%.2f"|format(credit_balance_cents / 100) }})
+            <input type="checkbox" name="use_credit" value="1"> {{ t('use_balance_label')|replace('{amount}', balance_rm) }}
           </label>
           {% endif %}
           <button type="submit" class="flex items-center justify-center min-h-[44px] w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800">
@@ -136,18 +137,19 @@
         <h2 class="text-2xl font-bold text-yellow-400 mb-2">{{ t('master_annual') }}</h2>
         <p class="text-gray-300 mb-6">{{ t('maximum_savings') }}</p>
         <div class="mb-6">
-          <span class="text-4xl font-bold text-white">RM688</span>
-          <span class="text-gray-400">{{ t('per_year') }}</span>
-          <div class="text-sm text-green-400 mt-1">{{ t('equivalent_monthly') }}</div>
+          <span class="text-4xl font-bold text-white">RM199</span>
+          <span class="text-gray-400"> {{ t('per_year') }}</span>
+          <div class="text-sm text-green-400 mt-1">{{ t('equivalent_monthly_199') }}</div>
         </div>
+        <div class="text-sm text-yellow-400 mb-2">{{ t('credits_per_month_100') }}</div>
         <div class="text-left mb-6 space-y-3 flex-1">
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
-            <span class="text-gray-300">{{ t('master_monthly') }} {{ t('feature_basic_analysis') }}</span>
+            <span class="text-gray-300">{{ t('all_monthly_features') }}</span>
           </div>
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
-            <span class="text-gray-300">{{ t('feature_ai_chat') }}</span>
+            <span class="text-gray-300">{{ t('feature_ai_chat') }} ({{ t('ai_question_credits') }})</span>
           </div>
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
@@ -155,32 +157,17 @@
           </div>
           <div class="flex items-center text-sm">
             <span class="text-green-400 mr-2">✓</span>
-            <span class="text-gray-300">{{ t('feature_early_access') }}</span>
-          </div>
-          <div class="flex items-center text-sm">
-            <span class="text-green-400 mr-2">✓</span>
-            <span class="text-gray-300">{{ t('feature_extended_history') }}</span>
-          </div>
-          <div class="flex items-center text-sm">
-            <span class="text-green-400 mr-2">✓</span>
-            <span class="text-gray-300">{{ t('feature_export') }}</span>
-          </div>
-          <div class="flex items-center text-sm">
-            <span class="text-green-400 mr-2">✓</span>
-            <span class="text-gray-300">{{ t('feature_exclusive_reports') }}</span>
-          </div>
-          <div class="flex items-center text-sm">
-            <span class="text-green-400 mr-2">✓</span>
-            <span class="text-gray-300">{{ t('feature_guarantee') }}</span>
+            <span class="text-gray-300">{{ t('invite_friend_100') }}</span>
           </div>
         </div>
         <div class="mt-auto pt-4">
-        {% if session.get('user') and not is_pro %}
+        {% if session.get('user') and user_plan != 'annual' %}
         <form method="POST" action="/subscribe/annual" class="space-y-2">
-          <input type="text" name="voucher_code" placeholder="优惠码（可选）" class="w-full px-3 py-2 rounded bg-dark border border-soft text-textlight text-sm">
+          <input type="text" name="voucher_code" placeholder="{{ t('voucher_placeholder') }}" class="w-full px-3 py-2 rounded bg-dark border border-soft text-textlight text-sm">
           {% if credit_balance_cents > 0 %}
+          {% set balance_rm_annual = "%.2f"|format(credit_balance_cents / 100) %}
           <label class="flex items-center gap-2 text-sm text-gray-300">
-            <input type="checkbox" name="use_credit" value="1"> 使用余额 (RM{{ "%.2f"|format(credit_balance_cents / 100) }})
+            <input type="checkbox" name="use_credit" value="1"> {{ t('use_balance_label')|replace('{amount}', balance_rm_annual) }}
           </label>
           {% endif %}
           <button type="submit" class="flex items-center justify-center min-h-[44px] w-full bg-yellow-500 hover:bg-yellow-600 text-black px-6 py-3 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800">
@@ -289,10 +276,10 @@
             <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
           </tr>
           <tr class="border-b border-soft">
-            <td class="px-6 py-4 font-medium text-textlight">🔄 {{ t('feature_unlimited') }}</td>
-            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
-            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
-            <td class="px-6 py-4 text-center"><span class="text-green-400">✓</span></td>
+            <td class="px-6 py-4 font-medium text-textlight">📊 {{ t('credits_per_month_row') }}</td>
+            <td class="px-6 py-4 text-center"><span class="text-green-400">10</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-blue-400">50</span></td>
+            <td class="px-6 py-4 text-center"><span class="text-yellow-400">100</span></td>
           </tr>
         </tbody>
       </table>

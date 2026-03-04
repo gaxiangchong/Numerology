@@ -70,6 +70,9 @@
                 {% elif session.get('user') %}
                     <span class="ml-2 bg-gray-600 text-white text-xs px-2 py-1 rounded">{{ t('free_badge') }}</span>
                 {% endif %}
+                {% if session.get('user') and credit_balance is defined %}
+                    <span class="ml-2 text-green-400 text-sm font-medium" title="{{ t('credits_label') }}">{{ t('credits_label') }} {{ credit_balance }}</span>
+                {% endif %}
             </a>
 
             <!-- Desktop Navigation -->
@@ -79,9 +82,7 @@
                 <a href="/contact" class="hover:text-highlight transition">{{ t('nav_contact') }}</a>
                 {% if session.get('user') %}
                     <a href="/referral" class="hover:text-highlight transition">{{ t('nav_referral') }}</a>
-                    {% if session.get('is_pro') %}
                     <a href="/ai" class="hover:text-highlight transition">{{ t('nav_ai') }}</a>
-                    {% endif %}
                     <a href="/profile" class="hover:text-highlight transition">{{ t('nav_profile') }}</a>
                     {% if is_admin %}
                     <a href="/admin" class="hover:text-amber-400 transition">{{ t('nav_admin') }}</a>
@@ -90,9 +91,15 @@
                     <a href="/login" class="hover:text-highlight transition">{{ t('nav_login') }}</a>
                 {% endif %}
                 
+                <!-- Language switcher -->
+                <span class="flex items-center gap-1 text-sm">
+                    <a href="{{ url_for('set_language_route', language='en') }}" class="px-2 py-1 rounded {{ 'bg-highlight text-white' if current_language == 'en' else 'text-soft hover:text-highlight' }}">EN</a>
+                    <span class="text-soft">|</span>
+                    <a href="{{ url_for('set_language_route', language='zh') }}" class="px-2 py-1 rounded {{ 'bg-highlight text-white' if current_language == 'zh' else 'text-soft hover:text-highlight' }}">中文</a>
+                </span>
                 <!-- PWA Install Button -->
-                <button id="install-button" type="button" class="hidden bg-green-600 hover:bg-green-700 text-white px-4 py-2 min-h-[var(--touch-min)] rounded-lg text-sm transition focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface" onclick="showInstallPrompt()" aria-label="Install app">
-                    📱 Install App
+                <button id="install-button" type="button" class="hidden bg-green-600 hover:bg-green-700 text-white px-4 py-2 min-h-[var(--touch-min)] rounded-lg text-sm transition focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface" onclick="showInstallPrompt()" aria-label="{{ t('install_app') }}">
+                    📱 {{ t('install_app') }}
                 </button>
             </nav>
 
@@ -112,12 +119,16 @@
                 <a href="/contact" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg">{{ t('nav_contact') }}</a>
                 {% if session.get('user') %}
                     <a href="/referral" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_referral') }}</a>
-                    {% if session.get('is_pro') %}<a href="/ai" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_ai') }}</a>{% endif %}
+                    <a href="/ai" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_ai') }}</a>
                     <a href="/profile" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_profile') }}</a>
                     {% if is_admin %}<a href="/admin" class="block px-4 py-3 text-amber-400 hover:bg-dark transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_admin') }}</a>{% endif %}
                 {% else %}
                     <a href="/login" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_login') }}</a>
                 {% endif %}
+                <div class="flex items-center gap-2 pt-2 border-t border-soft mt-2">
+                    <a href="{{ url_for('set_language_route', language='en') }}" class="px-3 py-2 rounded {{ 'bg-highlight text-white' if current_language == 'en' else 'text-soft' }}">EN</a>
+                    <a href="{{ url_for('set_language_route', language='zh') }}" class="px-3 py-2 rounded {{ 'bg-highlight text-white' if current_language == 'zh' else 'text-soft' }}">中文</a>
+                </div>
             </nav>
         </div>
 

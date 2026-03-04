@@ -3,7 +3,8 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import (
     User, UserHistory, CreditLedgerEntry, Voucher,
-    ReferralCreditGrant, PendingOrder, PasswordResetToken, _generate_referral_code
+    ReferralCreditGrant, ReferralUsageCreditGrant, PendingOrder, PasswordResetToken,
+    UsageCreditEntry, _generate_referral_code
 )
 from extensions import db, migrate  # ✅ NEW
 from flask_bcrypt import Bcrypt
@@ -94,6 +95,24 @@ migrate.init_app(app, db)
 
 with app.app_context():
     db.create_all()
+    # Add new credit columns to user table if missing (e.g. existing SQLite DB)
+    try:
+        from sqlalchemy import text
+        if db.engine.url.get_dialect().name == 'sqlite':
+            with db.engine.connect() as conn:
+                cur = conn.execute(text("PRAGMA table_info(user)"))
+                cols = [row[1] for row in cur]
+                for col, sql in [
+                    ('plan', "ALTER TABLE user ADD COLUMN plan VARCHAR(20) DEFAULT 'free'"),
+                    ('credits_balance', 'ALTER TABLE user ADD COLUMN credits_balance INTEGER DEFAULT 0'),
+                    ('credits_per_month', 'ALTER TABLE user ADD COLUMN credits_per_month INTEGER DEFAULT 10'),
+                    ('credit_reset_at', 'ALTER TABLE user ADD COLUMN credit_reset_at DATETIME'),
+                ]:
+                    if col not in cols:
+                        conn.execute(text(sql))
+                conn.commit()
+    except Exception:
+        pass
 
 # --- Helpers: credit balance, admin check ---
 def get_credit_balance_cents(user_id):
@@ -110,16 +129,65 @@ def get_credit_balance_cents(user_id):
     ).scalar() or 0
     return max(0, int(credits) - int(debits))
 
+
+def get_usage_credit_balance(user):
+    """Return user's usage credit balance. If credit_reset_at has passed, grant monthly credits and advance reset."""
+    if not user:
+        return 0
+    now = datetime.utcnow()
+    reset_at = getattr(user, 'credit_reset_at', None)
+    if reset_at is None:
+        # Backfill for existing users: grant initial 10 credits and set first reset
+        per_month = getattr(user, 'credits_per_month', None) or CREDITS_FREE_PER_MONTH
+        user.credits_per_month = per_month
+        user.credits_balance = (user.credits_balance or 0) + per_month
+        user.credit_reset_at = now + timedelta(days=30)
+        user.plan = getattr(user, 'plan', None) or 'free'
+        db.session.add(UsageCreditEntry(
+            user_id=user.id, type='monthly_grant', amount=per_month,
+            reference_type='initial_backfill', reference_id=None
+        ))
+        db.session.commit()
+        return max(0, user.credits_balance or 0)
+    if now >= reset_at:
+        per_month = getattr(user, 'credits_per_month', CREDITS_FREE_PER_MONTH) or CREDITS_FREE_PER_MONTH
+        user.credits_balance = (user.credits_balance or 0) + per_month
+        user.credit_reset_at = now + timedelta(days=30)
+        db.session.add(UsageCreditEntry(
+            user_id=user.id, type='monthly_grant', amount=per_month,
+            reference_type='monthly_reset', reference_id=None
+        ))
+        db.session.commit()
+    return max(0, user.credits_balance or 0)
+
+
+def deduct_usage_credits(user_id, amount, reference_type, reference_id=None):
+    """Deduct usage credits. Returns True if successful (balance was >= amount)."""
+    user = User.query.get(user_id)
+    if not user:
+        return False
+    balance = get_usage_credit_balance(user)
+    if balance < amount:
+        return False
+    user.credits_balance = (user.credits_balance or 0) - amount
+    db.session.add(UsageCreditEntry(
+        user_id=user_id, type=reference_type, amount=-amount,
+        reference_type=reference_type, reference_id=reference_id
+    ))
+    db.session.commit()
+    return True
+
+
 def require_admin(f):
     from functools import wraps
     @wraps(f)
     def inner(*args, **kwargs):
         if not session.get('user'):
-            flash('请先登录', 'error')
+            flash(get_translation('msg_please_login', get_current_language()), 'error')
             return redirect(url_for('login'))
         user = User.query.filter_by(email=session['user']).first()
         if not user or not getattr(user, 'is_admin', False):
-            flash('需要管理员权限', 'error')
+            flash(get_translation('msg_admin_required', get_current_language()), 'error')
             return redirect(url_for('index'))
         return f(*args, **kwargs)
     return inner
@@ -127,9 +195,19 @@ def require_admin(f):
 # Referral bonus amount (store credit in cents). e.g. 500 = RM5
 REFERRAL_BONUS_CENTS = 500
 # To make a user admin: UPDATE user SET is_admin=1 WHERE email='your@email.com';
-# Plan base prices in cents (for credit/voucher calculation). RM68/month, RM688/year.
-PLAN_PRICE_CENTS = {'monthly': 6800, 'annual': 68800}
-# Stripe Price IDs: create prices in Dashboard (Products → your product → Add price RM68 monthly, RM688 yearly) then set here or in env as STRIPE_PRICE_MONTHLY / STRIPE_PRICE_ANNUAL.
+
+# --- Credit-based plans (usage credits per month) ---
+CREDITS_FREE_PER_MONTH = 10
+CREDITS_MONTHLY_PLAN = 50   # RM19.90/month
+CREDITS_ANNUAL_PLAN = 100   # RM199/year
+COST_NUMBER_ANALYSIS = 2
+COST_AI_REQUEST = 3
+REFERRAL_CREDITS_WHEN_MONTHLY = 50   # referrer gets 50 when friend subscribes monthly
+REFERRAL_CREDITS_WHEN_ANNUAL = 100   # referrer gets 100 when friend subscribes annual
+
+# Plan base prices in cents. RM19.90/month, RM199/year.
+PLAN_PRICE_CENTS = {'monthly': 1990, 'annual': 19900}
+# Stripe Price IDs: set in Dashboard or env (STRIPE_PRICE_MONTHLY / STRIPE_PRICE_ANNUAL).
 STRIPE_PRICE_IDS = {
     'monthly': os.environ.get('STRIPE_PRICE_MONTHLY') or 'price_1T62AAPiKknSy39Rqrl6gofY',
     'annual': os.environ.get('STRIPE_PRICE_ANNUAL') or 'price_1T62BuPiKknSy39RHC2ignB9',
@@ -146,14 +224,20 @@ def inject_translations():
         u = User.query.filter_by(email=session['user']).first()
         if u:
             out['credit_balance_cents'] = get_credit_balance_cents(u.id)
+            out['credit_balance'] = get_usage_credit_balance(u)
+            out['user_plan'] = getattr(u, 'plan', None) or 'free'
             out['referral_code'] = getattr(u, 'referral_code', None)
             out['is_admin'] = getattr(u, 'is_admin', False)
         else:
             out['credit_balance_cents'] = 0
+            out['credit_balance'] = 0
+            out['user_plan'] = 'free'
             out['referral_code'] = None
             out['is_admin'] = False
     else:
         out['credit_balance_cents'] = 0
+        out['credit_balance'] = 0
+        out['user_plan'] = 'free'
         out['referral_code'] = None
         out['is_admin'] = False
     return out
@@ -669,9 +753,9 @@ def landing():
 def index():
     """Main analysis app. Nav 'Home' links here."""
     if 'user' not in session:
-        flash("请先登录以使用分析功能", "error")
+        flash(get_translation('msg_login_required', get_current_language()), "error")
         return redirect(url_for('login'))
-
+    user = User.query.filter_by(email=session['user']).first()
 
     input_data = None
     primary_result = None
@@ -687,50 +771,45 @@ def index():
 
     if request.method == 'POST':
         input_data = request.form['input_data']
+        if not user:
+            flash(get_translation('msg_please_login', get_current_language()), "error")
+            return redirect(url_for('login'))
+        balance = get_usage_credit_balance(user)
+        if balance < COST_NUMBER_ANALYSIS:
+            msg = get_translation('msg_insufficient_credits', get_current_language()).format(cost=COST_NUMBER_ANALYSIS, balance=balance)
+            flash(msg, "error")
+            return redirect(url_for('index'))
+        if not deduct_usage_credits(user.id, COST_NUMBER_ANALYSIS, 'number_analysis', reference_id=input_data[:50]):
+            flash(get_translation('msg_credit_deduction_failed', get_current_language()), "error")
+            return redirect(url_for('index'))
 
         # Analyze number
         primary_result, pair_stats, grouped_stats, grouped_energy, ending_warning, group_to_pairs, detailed_group_rows = analyze_number_pairs(input_data)
         
-        # Save to history if user is logged in
-        if session.get('user'):
-            user = User.query.filter_by(email=session['user']).first()
-            if user:
-                # Check if this input already exists for this user
-                existing_history = UserHistory.query.filter_by(
-                    user_id=user.id, 
-                    input_data=input_data
-                ).first()
-                
-                if not existing_history:
-                    # Create new history entry
-                    new_history = UserHistory(
-                        user_id=user.id,
-                        input_data=input_data
-                    )
-                    db.session.add(new_history)
-                    
-                    # Keep only the last 10 entries per user
-                    user_histories = UserHistory.query.filter_by(user_id=user.id).order_by(UserHistory.created_at.desc()).all()
-                    if len(user_histories) > 10:
-                        for old_history in user_histories[10:]:
-                            db.session.delete(old_history)
-                    
-                    db.session.commit()
+        # Save to history
+        if user:
+            existing_history = UserHistory.query.filter_by(
+                user_id=user.id, 
+                input_data=input_data
+            ).first()
+            if not existing_history:
+                new_history = UserHistory(user_id=user.id, input_data=input_data)
+                db.session.add(new_history)
+                user_histories = UserHistory.query.filter_by(user_id=user.id).order_by(UserHistory.created_at.desc()).all()
+                if len(user_histories) > 10:
+                    for old_history in user_histories[10:]:
+                        db.session.delete(old_history)
+                db.session.commit()
 
-        # If logged in and PRO, show advanced features
-        if session.get('user') and session.get('is_pro'):
-            secondary_result = perform_secondary_check(input_data)
-            special_definitions = check_special_conditions(primary_result)
-
-            # Prepare sorted energy profiles
-            profile_list = []
-            for group, data in grouped_stats.items():
-                if group in energy_descriptions:
-                    profile_list.append((group, energy_descriptions[group], data['percent']))
-            profile_list.sort(key=lambda x: x[2], reverse=True)
-            sorted_profiles = profile_list
-
-            detailed_group_rows=detailed_group_rows if input_data else [],
+        # Show advanced features for this analysis (user already paid 2 credits)
+        secondary_result = perform_secondary_check(input_data)
+        special_definitions = check_special_conditions(primary_result)
+        profile_list = []
+        for group, data in grouped_stats.items():
+            if group in energy_descriptions:
+                profile_list.append((group, energy_descriptions[group], data['percent']))
+        profile_list.sort(key=lambda x: x[2], reverse=True)
+        sorted_profiles = profile_list
 
     # Get recent numbers for logged-in users
     recent_numbers = []
@@ -755,17 +834,15 @@ def index():
                            grouped_stats_json=grouped_stats,
                            recent_numbers=recent_numbers,
                            is_pro=session.get('is_pro', False),
-                           user=session.get('user'))
+                           user=session.get('user'),
+                           credit_balance=get_usage_credit_balance(user) if user else 0)
 
 
 @app.route('/ai')
 def ai_page():
-    """AI chat page (Pro only). Chat-style UI, no history."""
+    """AI chat page. Each request costs 3 credits."""
     if not session.get('user'):
         return redirect(url_for('login'))
-    if not session.get('is_pro'):
-        flash(get_translation('ai_page_pro_required', get_current_language()), 'error')
-        return redirect(url_for('pricing'))
     try:
         from gemini_service import is_available as gemini_is_available
         gemini_available = gemini_is_available()
@@ -776,11 +853,18 @@ def ai_page():
 
 @app.route('/ask_ai', methods=['POST'])
 def ask_ai():
-    """Pro-only: ask Gemini (with optional file search) about a number/car plate."""
+    """Ask Gemini about a number/car plate. Costs 3 credits per request."""
     if not session.get('user'):
         return jsonify({'error': 'Login required'}), 401
-    if not session.get('is_pro'):
-        return jsonify({'error': 'Pro subscription required'}), 403
+    user = User.query.filter_by(email=session['user']).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 401
+    balance = get_usage_credit_balance(user)
+    if balance < COST_AI_REQUEST:
+        err_msg = get_translation('msg_insufficient_credits', get_current_language()).format(cost=COST_AI_REQUEST, balance=balance)
+        return jsonify({'error': err_msg}), 402
+    if not deduct_usage_credits(user.id, COST_AI_REQUEST, 'ai_request', reference_id=None):
+        return jsonify({'error': get_translation('msg_credit_deduction_failed', get_current_language())}), 402
     data = request.get_json(silent=True) or {}
     question = (data.get('question') or request.form.get('question') or '').strip()
     if not question:
@@ -829,14 +913,14 @@ def register():
         if request.is_json:
             return jsonify({'message': 'Email and password are required'}), 400
         else:
-            flash("请输入邮箱和密码", "error")
+            flash(get_translation('msg_email_password_required', get_current_language()), "error")
             return redirect(url_for('register'))
 
     if User.query.filter_by(email=email).first():
         if request.is_json:
             return jsonify({'message': 'User already exists'}), 400
         else:
-            flash("用户已存在", "error")
+            flash(get_translation('msg_user_exists', get_current_language()), "error")
             return redirect(url_for('register'))
 
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
@@ -849,7 +933,14 @@ def register():
         if referrer and referrer.email != email:
             referred_by_id = referrer.id
 
-    new_user = User(email=email, password=hashed_password, referred_by_id=referred_by_id)
+    now = datetime.utcnow()
+    new_user = User(
+        email=email, password=hashed_password, referred_by_id=referred_by_id,
+        plan='free',
+        credits_balance=CREDITS_FREE_PER_MONTH,
+        credits_per_month=CREDITS_FREE_PER_MONTH,
+        credit_reset_at=now + timedelta(days=30)
+    )
     # Unique referral code for this user (for sharing)
     for _ in range(5):
         code = _generate_referral_code()
@@ -864,7 +955,7 @@ def register():
     if request.is_json:
         return jsonify({'message': 'User registered successfully', 'is_pro': new_user.is_pro}), 201
     else:
-        flash("注册成功，请登录", "success")
+        flash(get_translation('msg_register_success', get_current_language()), "success")
         return redirect(url_for('login'))
 
 
@@ -875,15 +966,15 @@ def login():
         email = (request.form.get('email') or '').strip()
         password = request.form.get('password') or ''
         if not email or not password:
-            flash("请填写邮箱和密码" if get_current_language() == 'zh' else "Please enter email and password.", "error")
+            flash(get_translation('msg_fill_email_password', get_current_language()), "error")
             return render_template('login.html')
         user = User.query.filter_by(email=email).first()
         if user and bcrypt.check_password_hash(user.password, password):
             session['user'] = email
-            session['is_pro'] = user.is_pro
+            session['is_pro'] = (getattr(user, 'plan', None) in ('monthly', 'annual')) or user.is_pro
             session['is_admin'] = getattr(user, 'is_admin', False)
             return redirect(url_for('index'))
-        flash("登录失败，请检查邮箱或密码" if get_current_language() == 'zh' else "Login failed. Check email or password.", "error")
+        flash(get_translation('msg_login_failed', get_current_language()), "error")
     return render_template('login.html')
 
 
@@ -919,12 +1010,12 @@ def forgot_password():
         email = (request.form.get('email') or '').strip().lower()
         lang = get_current_language()
         if not email:
-            flash('请输入邮箱', 'error') if lang == 'zh' else flash('Please enter your email', 'error')
+            flash(get_translation('msg_enter_email', lang), 'error')
             return redirect(url_for('forgot_password'))
         user = User.query.filter_by(email=email).first()
         if not user:
             # Don't reveal whether email exists
-            flash('若该邮箱已注册，您将收到重置链接。请查收邮件。', 'success') if lang == 'zh' else flash('If that email is registered, you will receive a reset link. Check your inbox.', 'success')
+            flash(get_translation('msg_reset_sent', lang), 'success')
             return redirect(url_for('login'))
         # Invalidate any existing tokens for this user
         PasswordResetToken.query.filter_by(user_id=user.id).delete()
@@ -935,9 +1026,9 @@ def forgot_password():
         db.session.commit()
         reset_url = request.url_root.rstrip('/') + url_for('reset_password', token=token_str)
         if _send_password_reset_email(user.email, reset_url, lang):
-            flash('已发送重置链接到您的邮箱，请查收。', 'success') if lang == 'zh' else flash('A reset link has been sent to your email.', 'success')
+            flash(get_translation('msg_reset_email_sent', lang), 'success')
         else:
-            flash('邮件发送失败。请检查服务器邮件配置，或联系管理员。', 'error') if lang == 'zh' else flash('Failed to send email. Check server mail config or contact admin.', 'error')
+            flash(get_translation('msg_reset_failed', lang), 'error')
         return redirect(url_for('login'))
     return render_template('forgot_password.html')
 
@@ -946,18 +1037,18 @@ def forgot_password():
 def reset_password(token):
     t = PasswordResetToken.query.filter_by(token=token).first()
     if not t or t.used_at or t.expires_at < datetime.utcnow():
-        flash('链接无效或已过期，请重新申请重置密码。', 'error') if get_current_language() == 'zh' else flash('Link invalid or expired. Please request a new reset.', 'error')
+        flash(get_translation('msg_link_invalid', get_current_language()), 'error')
         return redirect(url_for('forgot_password'))
     if request.method == 'POST':
         password = request.form.get('password') or ''
         if len(password) < 6:
-            flash('密码至少6位', 'error') if get_current_language() == 'zh' else flash('Password must be at least 6 characters', 'error')
+            flash(get_translation('msg_password_min', get_current_language()), 'error')
             return render_template('reset_password.html', token=token)
         user = t.user
         user.password = bcrypt.generate_password_hash(password).decode('utf-8')
         t.used_at = datetime.utcnow()
         db.session.commit()
-        flash('密码已更新，请登录。', 'success') if get_current_language() == 'zh' else flash('Password updated. Please log in.', 'success')
+        flash(get_translation('msg_password_updated', get_current_language()), 'success')
         return redirect(url_for('login'))
     return render_template('reset_password.html', token=token)
 
@@ -967,7 +1058,7 @@ def logout():
     session.pop('user', None)
     session.pop('is_pro', None)
     session.pop('is_admin', None)
-    flash("已登出，请先登录以使用分析功能", "error")
+    flash(get_translation('msg_logged_out', get_current_language()), "error")
     return redirect(url_for('login'))
 
 
@@ -985,7 +1076,7 @@ def clear_history():
         if user:
             UserHistory.query.filter_by(user_id=user.id).delete()
             db.session.commit()
-            flash("历史记录已清除", "success")
+            flash(get_translation('msg_history_cleared', get_current_language()), "success")
     return redirect(url_for('index'))
 
 # DISABLED FOR TESTING - Create pro account functionality
@@ -1155,7 +1246,7 @@ def _validate_voucher(code):
     return v, None
 
 def _fulfill_order(order):
-    """Apply credit DEBIT, mark voucher USED, set user is_pro. Call with order locked/committed after."""
+    """Apply store-credit DEBIT if used, mark voucher USED, set plan + grant usage credits, grant referrer credits."""
     user = order.user
     if order.credit_applied_cents > 0:
         db.session.add(CreditLedgerEntry(
@@ -1169,13 +1260,42 @@ def _fulfill_order(order):
             v.used_at = datetime.utcnow()
             v.used_by_id = user.id
     user.is_pro = True
+    user.plan = order.plan
+    user.credits_per_month = CREDITS_ANNUAL_PLAN if order.plan == 'annual' else CREDITS_MONTHLY_PLAN
+    now = datetime.utcnow()
     extend_days = 365 if order.plan == 'annual' else 30
-    if not user.pro_until or user.pro_until < datetime.utcnow():
-        user.pro_until = datetime.utcnow() + timedelta(days=extend_days)
+    if not user.pro_until or user.pro_until < now:
+        user.pro_until = now + timedelta(days=extend_days)
     else:
         user.pro_until += timedelta(days=extend_days)
+    # First-month usage credits
+    first_grant = user.credits_per_month
+    user.credits_balance = (user.credits_balance or 0) + first_grant
+    user.credit_reset_at = now + timedelta(days=30)
+    db.session.add(UsageCreditEntry(
+        user_id=user.id, type='monthly_grant', amount=first_grant,
+        reference_type='subscription_start', reference_id=str(order.id)
+    ))
+    # Referrer usage-credit bonus (idempotent)
+    if getattr(user, 'referred_by_id', None) and user.referred_by_id != user.id:
+        existing = ReferralUsageCreditGrant.query.filter_by(
+            referrer_id=user.referred_by_id, referred_user_id=user.id
+        ).first()
+        if not existing:
+            bonus = REFERRAL_CREDITS_WHEN_ANNUAL if order.plan == 'annual' else REFERRAL_CREDITS_WHEN_MONTHLY
+            referrer = User.query.get(user.referred_by_id)
+            if referrer:
+                referrer.credits_balance = (referrer.credits_balance or 0) + bonus
+                db.session.add(UsageCreditEntry(
+                    user_id=referrer.id, type='referral_bonus', amount=bonus,
+                    reference_type='referral', reference_id=str(user.id)
+                ))
+                db.session.add(ReferralUsageCreditGrant(
+                    referrer_id=user.referred_by_id, referred_user_id=user.id,
+                    plan=order.plan, credits_granted=bonus
+                ))
     order.status = 'paid'
-    order.paid_at = datetime.utcnow()
+    order.paid_at = now
     db.session.commit()
 
 @app.route('/upgrade')
@@ -1184,7 +1304,7 @@ def upgrade_success():
     session_id = request.args.get('session_id')
     if not session_id:
         if session.get('user'):
-            flash('订阅成功！', 'success')
+            flash(get_translation('msg_subscribe_success_short', get_current_language()), 'success')
         return redirect(url_for('index'))
     try:
         checkout = stripe.checkout.Session.retrieve(session_id)
@@ -1210,7 +1330,7 @@ def upgrade_success():
             db.session.commit()
     if session.get('user') == customer_email:
         session['is_pro'] = True
-    flash('订阅成功！感谢您的支持。', 'success')
+    flash(get_translation('msg_subscribe_success', get_current_language()), 'success')
     return redirect(url_for('index'))
 
 @app.route('/upgrade/<int:user_id>', methods=['POST'])
@@ -1220,7 +1340,7 @@ def upgrade(user_id):
         return jsonify({'message': 'User not found'}), 404
 
     session['is_pro'] = True
-    flash("您已成功订阅大师版！", "success")
+    flash(get_translation('msg_upgrade_success', get_current_language()), "success")
 
     user.is_pro = True
     db.session.commit()
@@ -1231,7 +1351,7 @@ def upgrade(user_id):
 @app.route('/subscribe/<plan>', methods=['GET', 'POST'])
 def subscribe(plan):
     if plan not in PLAN_PRICE_CENTS:
-        flash('无效的订阅类型', 'error')
+        flash(get_translation('msg_invalid_subscription', get_current_language()), 'error')
         return redirect(url_for('pricing'))
     base_cents = PLAN_PRICE_CENTS[plan]
     price_id = STRIPE_PRICE_IDS.get(plan)
@@ -1239,7 +1359,7 @@ def subscribe(plan):
         return "无效的订阅类型", 400
 
     if not session.get('user'):
-        flash('请先登录', 'error')
+        flash(get_translation('msg_please_login', get_current_language()), 'error')
         return redirect(url_for('login'))
 
     user = User.query.filter_by(email=session['user']).first()
@@ -1273,7 +1393,7 @@ def subscribe(plan):
     if final_cents == 0:
         _fulfill_order(order)
         session['is_pro'] = True
-        flash('已使用余额/优惠券完成升级！', 'success')
+        flash(get_translation('msg_use_balance_done', get_current_language()), 'success')
         return redirect(url_for('index'))
 
     checkout_session = stripe.checkout.Session.create(
@@ -1283,8 +1403,8 @@ def subscribe(plan):
                 'currency': 'myr',
                 'unit_amount': final_cents,
                 'product_data': {
-                    'name': '大师版 ' + ('月付' if plan == 'monthly' else '年付'),
-                    'description': 'Numerology Master Plan'
+                    'name': ('月付 50 积分/月' if plan == 'monthly' else '年付 100 积分/月'),
+                    'description': 'RM19.90 月付 或 RM199 年付 · 数字分析 2 积分/次，AI 3 积分/次'
                 },
             },
             'quantity': 1,
@@ -1293,7 +1413,7 @@ def subscribe(plan):
         success_url=YOUR_DOMAIN + '/upgrade?session_id={CHECKOUT_SESSION_ID}',
         cancel_url=YOUR_DOMAIN + '/pricing',
         customer_email=session.get('user'),
-        metadata={'pending_order_id': str(order.id)}
+        metadata={'pending_order_id': str(order.id), 'plan': plan}
     )
     order.stripe_session_id = checkout_session.id
     db.session.commit()
@@ -1338,12 +1458,23 @@ def stripe_webhook():
     except stripe.error.SignatureVerificationError:
         return jsonify({'error': 'Invalid signature'}), 400
 
-    # 🎯 Handle successful payment (subscription or renewal)
+    # One-time checkout completed (our subscribe flow uses mode='payment')
+    if event['type'] == 'checkout.session.completed':
+        session_obj = event['data']['object']
+        order_id = session_obj.get('metadata', {}).get('pending_order_id')
+        if order_id:
+            try:
+                order = PendingOrder.query.get(int(order_id))
+                if order and order.status == 'pending':
+                    _fulfill_order(order)
+            except (ValueError, TypeError):
+                pass
+
+    # Subscription invoice (if you add subscription mode later)
     if event['type'] == 'invoice.paid':
         invoice = event['data']['object']
         subscription_id = invoice.get('subscription')
         customer_email = invoice.get('customer_email')
-
         user = User.query.filter_by(email=customer_email).first()
         if user:
             user.is_pro = True
@@ -1354,26 +1485,17 @@ def stripe_webhook():
                 user.pro_until = datetime.utcnow() + timedelta(days=extend_days)
             else:
                 user.pro_until += timedelta(days=extend_days)
-
-            # Referral: grant referrer store credit once per referred user (idempotent)
             if getattr(user, 'referred_by_id', None) and user.referred_by_id != user.id:
                 existing = ReferralCreditGrant.query.filter_by(
                     referrer_id=user.referred_by_id, referred_user_id=user.id
                 ).first()
                 if not existing:
-                    entry = CreditLedgerEntry(
-                        user_id=user.referred_by_id,
-                        type='CREDIT',
-                        amount_cents=REFERRAL_BONUS_CENTS,
-                        reference_type='referral',
-                        reference_id=str(user.id),
-                        note='Referral bonus'
-                    )
-                    db.session.add(entry)
+                    db.session.add(CreditLedgerEntry(
+                        user_id=user.referred_by_id, type='CREDIT', amount_cents=REFERRAL_BONUS_CENTS,
+                        reference_type='referral', reference_id=str(user.id), note='Referral bonus'
+                    ))
                     db.session.add(ReferralCreditGrant(
-                        referrer_id=user.referred_by_id,
-                        referred_user_id=user.id,
-                        amount_cents=REFERRAL_BONUS_CENTS
+                        referrer_id=user.referred_by_id, referred_user_id=user.id, amount_cents=REFERRAL_BONUS_CENTS
                     ))
             db.session.commit()
 

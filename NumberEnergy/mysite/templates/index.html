@@ -22,7 +22,7 @@
            placeholder="{{ t('input_placeholder') }}"
            aria-describedby="input_hint"
            autocomplete="off" />
-    <p id="input_hint" class="text-soft text-sm sr-only">Enter license plate, phone number, or any number combination to analyze.</p>
+    <p id="input_hint" class="text-soft text-sm sr-only">{{ t('input_hint') }}</p>
     <button type="submit" id="analyze-btn"
             class="w-full bg-highlight hover:bg-blue-700 text-white font-semibold py-3 rounded-md transition-all min-h-[44px] focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-70 disabled:cursor-not-allowed"
             aria-busy="false" data-loading-text="{{ t('btn_analyzing') }}">
