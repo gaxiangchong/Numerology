@@ -107,6 +107,8 @@ with app.app_context():
                     ('credits_balance', 'ALTER TABLE user ADD COLUMN credits_balance INTEGER DEFAULT 0'),
                     ('credits_per_month', 'ALTER TABLE user ADD COLUMN credits_per_month INTEGER DEFAULT 10'),
                     ('credit_reset_at', 'ALTER TABLE user ADD COLUMN credit_reset_at DATETIME'),
+                    ('display_name', 'ALTER TABLE user ADD COLUMN display_name VARCHAR(100)'),
+                    ('phone', 'ALTER TABLE user ADD COLUMN phone VARCHAR(30)'),
                 ]:
                     if col not in cols:
                         conn.execute(text(sql))
@@ -1062,11 +1064,22 @@ def logout():
     return redirect(url_for('login'))
 
 
-@app.route('/profile')
+@app.route('/profile', methods=['GET', 'POST'])
 def profile():
     if not session.get('user'):
         return redirect(url_for('login'))
-    return render_template('profile.html')
+    user = User.query.filter_by(email=session['user']).first()
+    if not user:
+        return redirect(url_for('login'))
+    if request.method == 'POST':
+        user.display_name = (request.form.get('display_name') or '').strip() or None
+        user.phone = (request.form.get('phone') or '').strip() or None
+        db.session.commit()
+        flash(get_translation('msg_profile_updated', get_current_language()), 'success')
+        return redirect(url_for('profile'))
+    return render_template('profile.html', user=user,
+                          credit_balance=get_usage_credit_balance(user),
+                          credit_balance_cents=get_credit_balance_cents(user.id))
 
 
 @app.route('/clear_history', methods=['POST'])

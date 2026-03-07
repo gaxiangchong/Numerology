@@ -28,6 +28,8 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     stripe_subscription_id = db.Column(db.String(100), nullable=True)
     is_admin = db.Column(db.Boolean, default=False)
+    display_name = db.Column(db.String(100), nullable=True)
+    phone = db.Column(db.String(30), nullable=True)
 
     __table_args__ = (
         UniqueConstraint('referral_code', name='uq_user_referral_code'),

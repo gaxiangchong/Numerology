@@ -51,6 +51,18 @@ TRANSLATIONS = {
         'profile_balance_label': 'Balance',
         'profile_settings_title': 'Settings',
         'profile_language_label': 'Language',
+        'profile_details_title': 'Profile details',
+        'profile_display_name': 'Display name',
+        'profile_phone': 'Phone',
+        'profile_email': 'Email',
+        'profile_save': 'Save changes',
+        'profile_credits_title': 'Credits & plan',
+        'profile_usage_balance': 'Usage credits',
+        'profile_plan': 'Plan',
+        'profile_store_balance': 'Store balance (RM)',
+        'profile_plan_free': 'Free',
+        'profile_plan_monthly': 'Monthly',
+        'profile_plan_annual': 'Annual',
         'btn_subscribe': 'Subscribe',
         'btn_get_started': 'Get Started',
         'btn_contact': 'Contact Us',
@@ -265,6 +277,7 @@ TRANSLATIONS = {
         'msg_password_updated': 'Password updated. Please log in.',
         'msg_password_min': 'Password must be at least 6 characters',
         'msg_user_not_found': 'User not found',
+        'msg_profile_updated': 'Profile updated successfully.',
     },
     
     'zh': {
@@ -316,6 +329,18 @@ TRANSLATIONS = {
         'profile_balance_label': '余额',
         'profile_settings_title': '设置',
         'profile_language_label': '语言',
+        'profile_details_title': '个人资料',
+        'profile_display_name': '显示名称',
+        'profile_phone': '电话',
+        'profile_email': '邮箱',
+        'profile_save': '保存',
+        'profile_credits_title': '积分与计划',
+        'profile_usage_balance': '可用积分',
+        'profile_plan': '计划',
+        'profile_store_balance': '余额 (RM)',
+        'profile_plan_free': '免费',
+        'profile_plan_monthly': '月付',
+        'profile_plan_annual': '年付',
         'btn_subscribe': '订阅',
         'btn_get_started': '开始使用',
         'btn_contact': '联系我们',
@@ -532,6 +557,7 @@ TRANSLATIONS = {
         'msg_password_updated': '密码已更新，请登录。',
         'msg_password_min': '密码至少6位',
         'msg_user_not_found': '用户不存在',
+        'msg_profile_updated': '个人资料已更新。',
     }
 }
 
@@ -540,9 +566,9 @@ def get_translation(key, language='en'):
     return TRANSLATIONS.get(language, {}).get(key, key)
 
 def get_current_language():
-    """Get current language from session or default to English"""
+    """Get current language from session or default to Chinese"""
     from flask import session
-    return session.get('language', 'en')
+    return session.get('language', 'zh')
 
 def set_language(language):
     """Set language in session"""

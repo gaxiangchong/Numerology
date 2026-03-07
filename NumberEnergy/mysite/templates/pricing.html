@@ -9,15 +9,6 @@
     <p class="text-gray-300 text-lg mb-6">
       {{ t('pricing_subtitle') }}
     </p>
-    <div class="bg-blue-900/50 border border-blue-400 rounded-lg px-6 py-4 mb-4 inline-block text-left">
-      <p class="text-gray-200 font-medium">📌 {{ t('credits_info_title') }}</p>
-      <p class="text-sm text-gray-300">· {{ t('credits_number_cost') }}</p>
-      <p class="text-sm text-gray-300">· {{ t('credits_ai_cost') }}</p>
-      <p class="text-sm text-gray-300">· {{ t('credits_referral_line') }}</p>
-    </div>
-    {% if session.get('user') and credit_balance is defined %}
-    <p class="text-gray-400">{{ t('credits_balance_label') }} <strong class="text-green-400">{{ credit_balance }}</strong></p>
-    {% endif %}
   </div>
 
   <!-- Pricing Cards: desktop = equal height, buttons aligned at bottom -->
