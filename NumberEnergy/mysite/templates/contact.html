@@ -2,76 +2,70 @@
 {% block title %}{{ t('contact_title') }}{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto text-center py-10 px-4">
+<div class="max-w-2xl mx-auto py-10 px-4">
 
-  <h1 class="text-3xl font-bold mb-6 text-blue-400">{{ t('contact_title') }}</h1>
-  <p class="mb-10 text-gray-300 text-lg">
-    {{ t('contact_subtitle') }}
+  <h1 class="text-3xl font-bold mb-2 text-blue-400">{{ t('contact_title') }}</h1>
+  <p class="mb-8 text-gray-300 text-lg">
+    {{ t('contact_form_intro') }}
   </p>
 
-  <div class="bg-surface p-4 sm:p-8 rounded-xl shadow-lg space-y-6">
-    
-    <!-- WhatsApp Contact -->
-    <div class="bg-green-600 p-4 sm:p-6 rounded-xl">
-      <div class="flex flex-col sm:flex-row items-center justify-center mb-4 space-y-2 sm:space-y-0 sm:space-x-3">
-        <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+  <form method="POST" action="{{ url_for('contact') }}" class="bg-surface p-6 sm:p-8 rounded-xl shadow-lg space-y-6">
+
+    <!-- Service selection -->
+    <fieldset class="space-y-3">
+      <legend class="text-sm font-medium text-soft uppercase tracking-wide mb-3">{{ t('contact_select_services') }}</legend>
+      <div class="space-y-3">
+        <label class="flex items-center gap-3 cursor-pointer group">
+          <input type="checkbox" name="services" value="change_phone" class="w-5 h-5 rounded border-soft bg-dark text-highlight focus:ring-2 focus:ring-highlight">
+          <span class="text-textlight group-hover:text-white transition">{{ t('contact_service_change_phone') }}</span>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer group">
+          <input type="checkbox" name="services" value="change_car_plate" class="w-5 h-5 rounded border-soft bg-dark text-highlight focus:ring-2 focus:ring-highlight">
+          <span class="text-textlight group-hover:text-white transition">{{ t('contact_service_change_car_plate') }}</span>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer group">
+          <input type="checkbox" name="services" value="read_bazi" class="w-5 h-5 rounded border-soft bg-dark text-highlight focus:ring-2 focus:ring-highlight">
+          <span class="text-textlight group-hover:text-white transition">{{ t('contact_service_read_bazi') }}</span>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer group">
+          <input type="checkbox" name="services" value="house_fengshui" class="w-5 h-5 rounded border-soft bg-dark text-highlight focus:ring-2 focus:ring-highlight">
+          <span class="text-textlight group-hover:text-white transition">{{ t('contact_service_house_fengshui') }}</span>
+        </label>
+      </div>
+      <p class="text-xs text-soft mt-1">{{ t('contact_select_services_hint') }}</p>
+    </fieldset>
+
+    <!-- Your request -->
+    <div>
+      <label for="contact-message" class="block text-sm font-medium text-textlight mb-2">{{ t('contact_request_label') }} <span class="text-red-400">*</span></label>
+      <textarea id="contact-message" name="message" required rows="5" placeholder="{{ t('contact_request_placeholder') }}"
+                class="w-full px-4 py-3 rounded-xl bg-dark border border-soft text-textlight placeholder-soft/70 focus:ring-2 focus:ring-highlight focus:border-highlight outline-none resize-y min-h-[120px]"></textarea>
+    </div>
+
+    <!-- Optional: Name & Email -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label for="contact-name" class="block text-sm font-medium text-textlight mb-1">{{ t('contact_name_label') }}</label>
+        <input type="text" id="contact-name" name="name" placeholder="{{ t('contact_name_placeholder') }}"
+               class="w-full px-4 py-3 rounded-xl bg-dark border border-soft text-textlight placeholder-soft/70 focus:ring-2 focus:ring-highlight focus:border-highlight outline-none">
+      </div>
+      <div>
+        <label for="contact-email" class="block text-sm font-medium text-textlight mb-1">{{ t('contact_email_label') }}</label>
+        <input type="email" id="contact-email" name="email" placeholder="{{ t('contact_email_placeholder') }}"
+               class="w-full px-4 py-3 rounded-xl bg-dark border border-soft text-textlight placeholder-soft/70 focus:ring-2 focus:ring-highlight focus:border-highlight outline-none">
+      </div>
+    </div>
+
+    <div class="pt-2">
+      <button type="submit" class="w-full flex items-center justify-center gap-2 min-h-[48px] bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
+        <svg class="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
         </svg>
-        <h2 class="text-xl sm:text-2xl font-bold text-white text-center sm:text-left">{{ t('whatsapp_contact') }}</h2>
-      </div>
-      <p class="text-green-100 mb-4 text-center sm:text-left text-sm sm:text-base">{{ t('whatsapp_description') }}</p>
-      <div class="flex justify-center sm:justify-start">
-        <a href="https://wa.me/60123456789" target="_blank" rel="noopener noreferrer"
-           class="flex items-center justify-center min-h-[44px] bg-white text-green-600 px-4 sm:px-6 py-3 rounded-lg font-semibold hover:bg-green-50 transition-colors w-full sm:w-auto focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-green-600">
-          <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
-          </svg>
-          <span class="text-sm sm:text-base">{{ t('send_whatsapp') }}</span>
-        </a>
-      </div>
+        {{ t('contact_send_via_wa') }}
+      </button>
+      <p class="text-xs text-soft text-center mt-2">{{ t('contact_send_hint') }}</p>
     </div>
-
-    <!-- Contact Information -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-      <div class="bg-dark p-6 rounded-xl">
-        <h3 class="text-lg font-semibold text-blue-400 mb-3">📞 联系方式</h3>
-        <p class="text-gray-300 mb-2">WhatsApp: +60 12-345 6789</p>
-        <p class="text-gray-300">营业时间: 9:00 AM - 6:00 PM</p>
-      </div>
-      
-      <div class="bg-dark p-6 rounded-xl">
-        <h3 class="text-lg font-semibold text-blue-400 mb-3">💬 服务内容</h3>
-        <ul class="text-gray-300 text-sm space-y-1">
-          <li>• 数字能量分析咨询</li>
-          <li>• 大师版功能说明</li>
-          <li>• 技术问题支持</li>
-          <li>• 账户相关问题</li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- FAQ Section -->
-    <div class="mt-8">
-      <h3 class="text-xl font-bold text-blue-400 mb-4 text-center sm:text-left">❓ 常见问题</h3>
-      <div class="space-y-4">
-        <div class="bg-dark p-4 rounded-lg">
-          <h4 class="font-semibold text-highlight mb-2 text-sm sm:text-base">Q: 如何升级到大师版？</h4>
-          <p class="text-gray-300 text-sm leading-relaxed">A: 点击页面上的"购买"按钮，选择适合您的订阅计划，或通过 WhatsApp 联系我们获取更多信息。</p>
-        </div>
-        
-        <div class="bg-dark p-4 rounded-lg">
-          <h4 class="font-semibold text-highlight mb-2 text-sm sm:text-base">Q: 数字能量分析准确吗？</h4>
-          <p class="text-gray-300 text-sm leading-relaxed">A: 我们的分析基于传统命理学理论，仅供参考。建议结合实际情况和个人判断使用。</p>
-        </div>
-        
-        <div class="bg-dark p-4 rounded-lg">
-          <h4 class="font-semibold text-highlight mb-2 text-sm sm:text-base">Q: 可以分析哪些类型的数字？</h4>
-          <p class="text-gray-300 text-sm leading-relaxed">A: 支持电话号码、车牌号码、身份证号码、生日等任何数字组合的分析。</p>
-        </div>
-      </div>
-    </div>
-
-  </div>
+  </form>
 
 </div>
 {% endblock %}

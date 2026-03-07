@@ -20,9 +20,21 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
 # Domain Configuration
 YOUR_DOMAIN=http://127.0.0.1:5000
 
+# Contact form: WhatsApp number for "Send via WhatsApp" (no + or spaces, e.g. 60123456789)
+# WHATSAPP_BUSINESS_NUMBER=60123456789
+
 # Optional: AI (Gemini) for Pro users — set for AI page to work
 # GOOGLE_GEMINI_API_KEY=your_gemini_api_key_from_ai_studio
 # GEMINI_FILE_SEARCH_STORE_NAME=fileSearchStores/your-store-id
+
+# Twilio Verify (WhatsApp OTP login). Get from Twilio Console.
+# TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# TWILIO_AUTH_TOKEN=your_auth_token
+# TWILIO_VERIFY_SERVICE_SID=VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Dashboard (separate app, same DB). Create first admin via dashboard/create_admin.py
+# DASHBOARD_SECRET_KEY=your_dashboard_secret_key
+# Use same DATABASE_URL or SQLALCHEMY_DATABASE_URI when running the dashboard.
 
 # For Production (PythonAnywhere)
 # YOUR_DOMAIN=https://yourusername.pythonanywhere.com

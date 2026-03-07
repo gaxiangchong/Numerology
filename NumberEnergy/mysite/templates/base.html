@@ -78,15 +78,14 @@
             <!-- Desktop Navigation -->
             <nav class="hidden md:flex items-center space-x-6 text-textlight text-base">
                 <a href="/app" class="hover:text-highlight transition">{{ t('nav_home') }}</a>
+                <a href="/lucky" class="hover:text-highlight transition">{{ t('nav_lucky') }}</a>
+                {% if session.get('user') %}
+                    <a href="/ai" class="hover:text-highlight transition">{{ t('nav_ai') }}</a>
+                {% endif %}
                 <a href="/pricing" class="hover:text-highlight transition">{{ t('nav_pricing') }}</a>
                 <a href="/contact" class="hover:text-highlight transition">{{ t('nav_contact') }}</a>
                 {% if session.get('user') %}
-                    <a href="/referral" class="hover:text-highlight transition">{{ t('nav_referral') }}</a>
-                    <a href="/ai" class="hover:text-highlight transition">{{ t('nav_ai') }}</a>
                     <a href="/profile" class="hover:text-highlight transition">{{ t('nav_profile') }}</a>
-                    {% if is_admin %}
-                    <a href="/admin" class="hover:text-amber-400 transition">{{ t('nav_admin') }}</a>
-                    {% endif %}
                 {% else %}
                     <a href="/login" class="hover:text-highlight transition">{{ t('nav_login') }}</a>
                 {% endif %}
@@ -115,13 +114,14 @@
         <div id="mobile-menu" class="md:hidden hidden bg-surface rounded-xl mb-6 shadow-lg overflow-hidden" role="dialog" aria-label="{{ t('nav_menu') }}">
             <nav class="flex flex-col space-y-1 p-4">
                 <a href="/app" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_home') }}</a>
+                <a href="/lucky" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_lucky') }}</a>
+                {% if session.get('user') %}
+                    <a href="/ai" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_ai') }}</a>
+                {% endif %}
                 <a href="/pricing" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg">{{ t('nav_pricing') }}</a>
                 <a href="/contact" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg">{{ t('nav_contact') }}</a>
                 {% if session.get('user') %}
-                    <a href="/referral" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_referral') }}</a>
-                    <a href="/ai" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_ai') }}</a>
                     <a href="/profile" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_profile') }}</a>
-                    {% if is_admin %}<a href="/admin" class="block px-4 py-3 text-amber-400 hover:bg-dark transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_admin') }}</a>{% endif %}
                 {% else %}
                     <a href="/login" class="block px-4 py-3 text-textlight hover:bg-dark hover:text-highlight transition rounded-lg min-h-[var(--touch-min)] flex items-center">{{ t('nav_login') }}</a>
                 {% endif %}

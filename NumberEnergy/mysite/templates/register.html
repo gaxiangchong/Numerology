@@ -22,6 +22,17 @@
     {% endwith %}
 
     <form method="POST" class="p-6 sm:p-8 space-y-5">
+      <!-- WhatsApp / Phone (primary for OTP login) -->
+      <div class="space-y-2">
+        <label for="phone" class="block text-sm font-medium text-textlight">{{ t('register_phone_label') }}</label>
+        <input type="tel" name="phone" id="phone" required autocomplete="tel"
+               class="w-full px-4 py-3 min-h-[44px] bg-dark border border-soft rounded-xl text-textlight placeholder-soft/70
+                      focus:ring-2 focus:ring-highlight focus:border-highlight outline-none transition-all
+                      hover:border-soft/80"
+               placeholder="{{ t('register_phone_placeholder') }}">
+        <p class="text-xs text-soft">{{ t('register_phone_hint') }}</p>
+      </div>
+
       <!-- Email -->
       <div class="space-y-2">
         <label for="email" class="block text-sm font-medium text-textlight">{{ t('email_label') }}</label>

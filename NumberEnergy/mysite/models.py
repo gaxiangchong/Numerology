@@ -16,10 +16,10 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
-    is_pro = db.Column(db.Boolean, default=False)  # kept for backward compat; paid = (plan in ('monthly','annual'))
+    is_pro = db.Column(db.Boolean, default=False)  # paid = (plan in ('starter','pro','master') or legacy monthly/annual)
     pro_until = db.Column(db.DateTime, nullable=True)
-    # Credit-based plans: free=10/mo, monthly=50/mo (RM19.90), annual=100/mo (RM199)
-    plan = db.Column(db.String(20), default='free')  # 'free' | 'monthly' | 'annual'
+    # Plans: free=10/mo, starter=150, pro=500, master=unlimited (monthly only)
+    plan = db.Column(db.String(20), default='free')  # 'free' | 'starter' | 'pro' | 'master' (legacy: monthly, annual)
     credits_balance = db.Column(db.Integer, default=0)
     credits_per_month = db.Column(db.Integer, default=10)
     credit_reset_at = db.Column(db.DateTime, nullable=True)
@@ -30,6 +30,10 @@ class User(db.Model):
     is_admin = db.Column(db.Boolean, default=False)
     display_name = db.Column(db.String(100), nullable=True)
     phone = db.Column(db.String(30), nullable=True)
+    # 日柱 (Day Master) for personalized lucky number: 木/火/土/金/水 (阴阳五行)
+    day_master = db.Column(db.String(10), nullable=True)
+    # Mail subscription: +4 credits per month when True
+    mail_subscriber = db.Column(db.Boolean, default=False, nullable=False)
 
     __table_args__ = (
         UniqueConstraint('referral_code', name='uq_user_referral_code'),
@@ -97,6 +101,17 @@ class UsageCreditEntry(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref=db.backref('usage_credit_entries', lazy='dynamic'))
+
+
+class LuckyNumberHistory(db.Model):
+    """Last 10 lucky 4-digit generations per user (date/time only; no category info stored)."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    number = db.Column(db.String(10), nullable=False)  # 4-digit string
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_favorite = db.Column(db.Boolean, default=False, nullable=False)  # pinned to keep at top; all 10 fav = no new storage
+
+    user = db.relationship('User', backref=db.backref('lucky_number_history', lazy='dynamic'))
 
 
 class ReferralUsageCreditGrant(db.Model):

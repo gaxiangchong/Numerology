@@ -5,6 +5,24 @@
 <div class="max-w-2xl mx-auto space-y-6 py-6">
   <h1 class="text-2xl font-bold text-highlight">{{ t('profile_title') }}</h1>
 
+  <!-- Set password prompt (e.g. after OTP login) -->
+  {% if set_password_prompt %}
+  <section class="bg-amber-900/30 border border-amber-500/50 rounded-xl p-6" aria-labelledby="set-password-heading">
+    <h2 id="set-password-heading" class="text-lg font-semibold text-amber-400 mb-2">{{ t('profile_set_password_heading') }}</h2>
+    <p class="text-sm text-gray-300 mb-4">{{ t('profile_set_password_suggest') }}</p>
+    <form method="post" action="{{ url_for('profile_set_password') }}" class="space-y-3">
+      <div>
+        <label for="new-password" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_set_password_label') }}</label>
+        <input type="password" name="password" id="new-password" minlength="6" required autocomplete="new-password" placeholder="{{ t('profile_set_password_placeholder') }}"
+               class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-textlight focus:ring-2 focus:ring-highlight">
+      </div>
+      <button type="submit" class="w-full min-h-[44px] px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium transition-colors">
+        {{ t('profile_set_password_btn') }}
+      </button>
+    </form>
+  </section>
+  {% endif %}
+
   <!-- Profile details: editable -->
   <section class="bg-surface rounded-xl shadow-lg p-6 border border-soft/50" aria-labelledby="profile-details-heading">
     <h2 id="profile-details-heading" class="text-sm font-medium text-soft uppercase tracking-wide mb-4">{{ t('profile_details_title') }}</h2>
@@ -20,6 +38,18 @@
       <div>
         <label for="profile-phone" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_phone') }}</label>
         <input type="text" id="profile-phone" name="phone" value="{{ user.phone or '' }}" placeholder="{{ t('profile_phone') }}" class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-textlight placeholder-gray-500 focus:ring-2 focus:ring-highlight focus:border-transparent">
+      </div>
+      <div>
+        <label for="profile-day-master" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_day_master') }}</label>
+        <select id="profile-day-master" name="day_master" class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-textlight focus:ring-2 focus:ring-highlight focus:border-transparent">
+          <option value="">{{ t('profile_day_master_placeholder') }}</option>
+          <option value="木" {{ 'selected' if user.day_master == '木' else '' }}>木</option>
+          <option value="火" {{ 'selected' if user.day_master == '火' else '' }}>火</option>
+          <option value="土" {{ 'selected' if user.day_master == '土' else '' }}>土</option>
+          <option value="金" {{ 'selected' if user.day_master == '金' else '' }}>金</option>
+          <option value="水" {{ 'selected' if user.day_master == '水' else '' }}>水</option>
+        </select>
+        <p class="mt-1 text-xs text-soft">{{ t('profile_day_master_hint') }}</p>
       </div>
       <button type="submit" class="w-full min-h-[var(--touch-min)] flex items-center justify-center px-6 py-3 rounded-xl bg-highlight hover:bg-blue-600 text-white font-medium transition-colors focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
         {{ t('profile_save') }}
@@ -38,7 +68,7 @@
       <div class="flex justify-between items-center">
         <span class="text-textlight">{{ t('profile_plan') }}</span>
         <span class="font-semibold text-textlight">
-          {% if user_plan == 'annual' %}{{ t('profile_plan_annual') }}{% elif user_plan == 'monthly' %}{{ t('profile_plan_monthly') }}{% else %}{{ t('profile_plan_free') }}{% endif %}
+          {% if user_plan == 'master' %}{{ t('profile_plan_master') }}{% elif user_plan == 'pro' %}{{ t('profile_plan_pro') }}{% elif user_plan == 'starter' %}{{ t('profile_plan_starter') }}{% elif user_plan == 'annual' %}{{ t('profile_plan_annual') }}{% elif user_plan == 'monthly' %}{{ t('profile_plan_monthly') }}{% else %}{{ t('profile_plan_free') }}{% endif %}
         </span>
       </div>
       <div class="flex justify-between items-center">
@@ -52,6 +82,53 @@
       <p class="text-sm text-gray-300">· {{ t('credits_ai_cost') }}</p>
       <p class="text-sm text-gray-300">· {{ t('credits_referral_line') }}</p>
     </div>
+  </section>
+
+  <!-- Referral: share link & stats -->
+  <section class="bg-surface rounded-xl shadow-lg p-6 border border-soft/50" aria-labelledby="profile-referral-heading" data-copy-msg="{{ t('profile_referral_copied') }}">
+    <h2 id="profile-referral-heading" class="text-sm font-medium text-soft uppercase tracking-wide mb-4">🎁 {{ t('profile_referral_heading') }}</h2>
+    <p class="text-soft text-sm mb-4">{{ t('profile_referral_intro') }}</p>
+    <div class="flex flex-wrap gap-2 mb-3">
+      <input type="text" id="profile-share-url" readonly value="{{ share_url }}" class="flex-1 min-w-0 px-4 py-2 rounded-lg bg-dark border border-soft text-textlight text-sm">
+      <button type="button" onclick="copyProfileLink()" class="px-4 py-2 rounded-lg bg-highlight text-white text-sm font-medium hover:bg-blue-700 transition min-h-[44px]">
+        {{ t('profile_referral_copy_btn') }}
+      </button>
+    </div>
+    <p class="text-soft text-xs mb-4">{{ t('referral_code_label') }}: <strong>{{ referral_code }}</strong></p>
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="bg-dark/50 rounded-lg p-4 text-center">
+        <p class="text-2xl font-bold text-green-400">{{ referral_count }}</p>
+        <p class="text-soft text-xs">{{ t('profile_referral_count') }}</p>
+      </div>
+      <div class="bg-dark/50 rounded-lg p-4 text-center">
+        <p class="text-2xl font-bold text-highlight">RM{{ "%.2f"|format(credit_balance_cents / 100) }}</p>
+        <p class="text-soft text-xs">{{ t('profile_store_balance') }}</p>
+      </div>
+    </div>
+    <div class="bg-blue-900/30 border border-blue-500/30 rounded-lg px-4 py-3 text-left">
+      <h3 class="font-semibold text-textlight text-sm mb-2">{{ t('profile_referral_rules_title') }}</h3>
+      <ul class="text-soft text-xs space-y-1 list-disc list-inside">
+        <li>{{ t('profile_referral_rule_1') }}</li>
+        <li>{{ t('profile_referral_rule_2')|replace('{amount}', "%.2f"|format(referral_bonus_cents / 100)) }}</li>
+        <li>{{ t('profile_referral_rule_3') }}</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Mail subscription: +4 credits/month -->
+  <section class="bg-surface rounded-xl shadow-lg p-6 border border-soft/50" aria-labelledby="mail-sub-heading">
+    <h2 id="mail-sub-heading" class="text-sm font-medium text-soft uppercase tracking-wide mb-4">📧 {{ t('mail_subscribe_heading') }}</h2>
+    {% if mail_subscriber %}
+      <p class="text-green-400 font-medium">{{ t('mail_subscribed_status') }}</p>
+      <p class="text-sm text-gray-400 mt-1">{{ t('mail_subscribed_credits') }}</p>
+    {% else %}
+      <p class="text-textlight mb-3">{{ t('mail_subscribe_description') }}</p>
+      <form method="post" action="{{ url_for('profile_subscribe_mail') }}" class="inline">
+        <button type="submit" class="min-h-[44px] px-6 py-3 rounded-xl bg-highlight hover:bg-blue-700 text-white font-medium transition-colors">
+          {{ t('mail_subscribe_btn') }}
+        </button>
+      </form>
+    {% endif %}
   </section>
 
   <!-- Settings: Language -->
@@ -75,4 +152,16 @@
     </a>
   </section>
 </div>
+
+<script>
+function copyProfileLink() {
+  var el = document.getElementById('profile-share-url');
+  if (!el) return;
+  el.select();
+  el.setSelectionRange(0, 99999);
+  var section = el.closest('section');
+  var msg = section && section.getAttribute('data-copy-msg') ? section.getAttribute('data-copy-msg') : 'Link copied to clipboard';
+  navigator.clipboard.writeText(el.value).then(function() { alert(msg); });
+}
+</script>
 {% endblock %}

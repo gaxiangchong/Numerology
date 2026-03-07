@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Dashboard{% endblock %} | Numerology Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { background: #1a1a2e; color: #e2e8f0; }</style>
+</head>
+<body class="min-h-screen">
+  <header class="bg-gray-900 border-b border-gray-700 px-4 py-3">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <a href="{{ url_for('dashboard_home') }}" class="text-xl font-bold text-blue-400">Dashboard</a>
+      <nav class="flex gap-4">
+        <a href="{{ url_for('dashboard_home') }}" class="text-gray-300 hover:text-white">Home</a>
+        <a href="{{ url_for('subscribers') }}" class="text-gray-300 hover:text-white">Subscribers</a>
+        <a href="{{ url_for('vouchers_list') }}" class="text-gray-300 hover:text-white">Vouchers</a>
+        <a href="{{ url_for('voucher_create') }}" class="text-gray-300 hover:text-white">Create voucher</a>
+        <a href="{{ url_for('grant_credit') }}" class="text-amber-400 hover:text-amber-300">Top up credits</a>
+        <a href="{{ url_for('orders_list') }}" class="text-gray-300 hover:text-white">Orders</a>
+        {% if session.get('dashboard_admin_id') %}
+        <span class="text-gray-500">{{ session.get('dashboard_admin_email') }}</span>
+        <a href="{{ url_for('logout') }}" class="text-red-400 hover:text-red-300">Logout</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+  <main class="max-w-6xl mx-auto px-4 py-8">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="mb-4 p-3 rounded {{ 'bg-green-900/50 text-green-300' if category == 'success' else 'bg-red-900/50 text-red-300' }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

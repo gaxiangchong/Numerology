@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Orders{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold text-blue-400 mb-6">Pending / paid orders</h1>
+<div class="overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-800 text-left">
+      <tr>
+        <th class="px-4 py-3">ID</th>
+        <th class="px-4 py-3">User ID</th>
+        <th class="px-4 py-3">Plan</th>
+        <th class="px-4 py-3">Amount (cents)</th>
+        <th class="px-4 py-3">Status</th>
+        <th class="px-4 py-3">Created</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in orders %}
+      <tr class="border-b border-gray-700">
+        <td class="px-4 py-3">{{ o.id }}</td>
+        <td class="px-4 py-3">{{ o.user_id }}</td>
+        <td class="px-4 py-3">{{ o.plan }}</td>
+        <td class="px-4 py-3">{{ o.amount_cents }}</td>
+        <td class="px-4 py-3">{{ o.status }}</td>
+        <td class="px-4 py-3">{{ o.created_at.strftime('%Y-%m-%d %H:%M') if o.created_at else '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="px-4 py-6 text-gray-500 text-center">No orders.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

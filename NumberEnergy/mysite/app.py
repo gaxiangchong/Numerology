@@ -4,14 +4,15 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import (
     User, UserHistory, CreditLedgerEntry, Voucher,
     ReferralCreditGrant, ReferralUsageCreditGrant, PendingOrder, PasswordResetToken,
-    UsageCreditEntry, _generate_referral_code
+    UsageCreditEntry, LuckyNumberHistory, _generate_referral_code
 )
 from extensions import db, migrate  # ✅ NEW
 from flask_bcrypt import Bcrypt
 from translations import get_translation, get_current_language, set_language
 
 from datetime import datetime, timedelta
-import stripe, json, smtplib, os, secrets
+import stripe, json, smtplib, os, secrets, random, re
+import requests as _requests
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -77,6 +78,10 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'])
 app.config['PASSWORD_RESET_EXPIRY_HOURS'] = int(os.environ.get('PASSWORD_RESET_EXPIRY_HOURS', '1'))
+# Twilio Verify (WhatsApp OTP). Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SERVICE_SID.
+app.config['TWILIO_ACCOUNT_SID'] = os.environ.get('TWILIO_ACCOUNT_SID', '')
+app.config['TWILIO_AUTH_TOKEN'] = os.environ.get('TWILIO_AUTH_TOKEN', '')
+app.config['TWILIO_VERIFY_SERVICE_SID'] = os.environ.get('TWILIO_VERIFY_SERVICE_SID', '')
 
 db.init_app(app)
 bcrypt = Bcrypt(app)
@@ -109,6 +114,7 @@ with app.app_context():
                     ('credit_reset_at', 'ALTER TABLE user ADD COLUMN credit_reset_at DATETIME'),
                     ('display_name', 'ALTER TABLE user ADD COLUMN display_name VARCHAR(100)'),
                     ('phone', 'ALTER TABLE user ADD COLUMN phone VARCHAR(30)'),
+                    ('mail_subscriber', 'ALTER TABLE user ADD COLUMN mail_subscriber BOOLEAN DEFAULT 0'),
                 ]:
                     if col not in cols:
                         conn.execute(text(sql))
@@ -139,10 +145,11 @@ def get_usage_credit_balance(user):
     now = datetime.utcnow()
     reset_at = getattr(user, 'credit_reset_at', None)
     if reset_at is None:
-        # Backfill for existing users: grant initial 10 credits and set first reset
+        # Backfill for existing users: grant initial credits and set first reset
         per_month = getattr(user, 'credits_per_month', None) or CREDITS_FREE_PER_MONTH
+        mail_bonus = 4 if getattr(user, 'mail_subscriber', False) else 0
         user.credits_per_month = per_month
-        user.credits_balance = (user.credits_balance or 0) + per_month
+        user.credits_balance = (user.credits_balance or 0) + per_month + mail_bonus
         user.credit_reset_at = now + timedelta(days=30)
         user.plan = getattr(user, 'plan', None) or 'free'
         db.session.add(UsageCreditEntry(
@@ -153,10 +160,12 @@ def get_usage_credit_balance(user):
         return max(0, user.credits_balance or 0)
     if now >= reset_at:
         per_month = getattr(user, 'credits_per_month', CREDITS_FREE_PER_MONTH) or CREDITS_FREE_PER_MONTH
-        user.credits_balance = (user.credits_balance or 0) + per_month
+        mail_bonus = 4 if getattr(user, 'mail_subscriber', False) else 0
+        total_grant = per_month + mail_bonus
+        user.credits_balance = (user.credits_balance or 0) + total_grant
         user.credit_reset_at = now + timedelta(days=30)
         db.session.add(UsageCreditEntry(
-            user_id=user.id, type='monthly_grant', amount=per_month,
+            user_id=user.id, type='monthly_grant', amount=total_grant,
             reference_type='monthly_reset', reference_id=None
         ))
         db.session.commit()
@@ -199,20 +208,29 @@ REFERRAL_BONUS_CENTS = 500
 # To make a user admin: UPDATE user SET is_admin=1 WHERE email='your@email.com';
 
 # --- Credit-based plans (usage credits per month) ---
+# Free: 10/mo. Starter: RM39, 150. Pro: RM59, 500. Master: RM99, unlimited (99999).
 CREDITS_FREE_PER_MONTH = 10
-CREDITS_MONTHLY_PLAN = 50   # RM19.90/month
-CREDITS_ANNUAL_PLAN = 100   # RM199/year
+CREDITS_BY_PLAN = {
+    'free': 10,
+    'starter': 150,
+    'pro': 500,
+    'master': 99999,  # unlimited
+    'monthly': 50,    # legacy
+    'annual': 100,    # legacy
+}
 COST_NUMBER_ANALYSIS = 2
 COST_AI_REQUEST = 3
-REFERRAL_CREDITS_WHEN_MONTHLY = 50   # referrer gets 50 when friend subscribes monthly
-REFERRAL_CREDITS_WHEN_ANNUAL = 100   # referrer gets 100 when friend subscribes annual
+COST_LUCKY_GENERATION = 1
+REFERRAL_CREDITS_WHEN_STARTER = 20
+REFERRAL_CREDITS_WHEN_PRO = 50
+REFERRAL_CREDITS_WHEN_MASTER = 100
 
-# Plan base prices in cents. RM19.90/month, RM199/year.
-PLAN_PRICE_CENTS = {'monthly': 1990, 'annual': 19900}
-# Stripe Price IDs: set in Dashboard or env (STRIPE_PRICE_MONTHLY / STRIPE_PRICE_ANNUAL).
+# Plan base prices in cents. Starter RM39, Pro RM59, Master RM99 (monthly only).
+PLAN_PRICE_CENTS = {'starter': 3900, 'pro': 5900, 'master': 9900}
 STRIPE_PRICE_IDS = {
-    'monthly': os.environ.get('STRIPE_PRICE_MONTHLY') or 'price_1T62AAPiKknSy39Rqrl6gofY',
-    'annual': os.environ.get('STRIPE_PRICE_ANNUAL') or 'price_1T62BuPiKknSy39RHC2ignB9',
+    'starter': os.environ.get('STRIPE_PRICE_STARTER') or '',
+    'pro': os.environ.get('STRIPE_PRICE_PRO') or '',
+    'master': os.environ.get('STRIPE_PRICE_MASTER') or '',
 }
 
 # Add translation context processor
@@ -322,11 +340,54 @@ pair_mappings = {
 
 ending_financial_warnings = {
     "绝命": "冲动消费，投资血亏容易让人花钱如流水",
-    "五鬼": "意外破财，财务丢失，钱不经意“蒸发”",
+    "五鬼": "意外破财，财务丢失，钱不经意蒸发",
     "六煞": "情绪消费，人情破财，心情不好狂消费，钱用在安抚情绪",
     "祸害": "口舌破财，健康耗财，容易吵架赔钱，赚多留不住",
     "伏位": "保守漏财，错失良机，钱在银行悄悄贬值"
 }
+
+# Lucky 4-digit generator: 六煞 + 生气 pairs only (from app pair_mappings)
+LIU_SHA_PAIRS = ['16', '61', '74', '47', '38', '83', '92', '29']
+SHENG_QI_PAIRS = ['14', '41', '76', '67', '93', '39', '28', '82']
+# 阴阳五行 我克者为财: day_master -> 财 element -> lucky digits (河图: 水1,6 火4,9 木3,8 金2,7 土5,0)
+DAY_MASTER_TO_WEALTH_DIGITS = {
+    '木': [],   # 财=土 5,0 - no 5,0 in pairs, fallback to general
+    '火': ['2', '7'],  # 财=金
+    '土': ['1', '6'],  # 财=水
+    '金': ['3', '8'],  # 财=木
+    '水': ['4', '9'],  # 财=火
+}
+
+def _pairs_containing_digits(pair_list, digits):
+    """Return pairs that contain any of the given digits."""
+    if not digits:
+        return pair_list
+    return [p for p in pair_list if p[0] in digits or p[1] in digits]
+
+def generate_lucky_4digit(mode='general', day_master=None):
+    """
+    Generate a 4-digit lucky number from 六煞 + 生气.
+    mode: 'general' (any 六煞+生气) or 'personal' (filter by day_master 财 digits).
+    Returns (four_digit_str, liu_sha_pair, sheng_qi_pair).
+    """
+    liu_sha = list(LIU_SHA_PAIRS)
+    sheng_qi = list(SHENG_QI_PAIRS)
+    if mode == 'personal' and day_master and day_master in DAY_MASTER_TO_WEALTH_DIGITS:
+        digits = DAY_MASTER_TO_WEALTH_DIGITS[day_master]
+        if digits:
+            liu_sha = _pairs_containing_digits(liu_sha, digits)
+            sheng_qi = _pairs_containing_digits(sheng_qi, digits)
+        # if digits empty (木) or no match, keep full lists
+    if not liu_sha:
+        liu_sha = list(LIU_SHA_PAIRS)
+    if not sheng_qi:
+        sheng_qi = list(SHENG_QI_PAIRS)
+    ls = random.choice(liu_sha)
+    sq = random.choice(sheng_qi)
+    # Random order: 六煞+生气 or 生气+六煞
+    if random.choice([True, False]):
+        return ls + sq, ls, sq
+    return sq + ls, ls, sq
 
 
 # Define the secondary group mappings
@@ -901,15 +962,17 @@ def register():
             session['referral_ref'] = ref.strip()[:20]
         return render_template('register.html', ref=ref)
 
-    email = password = None  # ✅ always declared
+    email = password = phone = None  # always declared
 
     if request.is_json:
         data = request.get_json()
         email = data.get('email')
         password = data.get('password')
+        phone = data.get('phone')
     else:
         email = request.form.get('email')
         password = request.form.get('password')
+        phone = (request.form.get('phone') or '').strip()
 
     if not email or not password:
         if request.is_json:
@@ -918,12 +981,28 @@ def register():
             flash(get_translation('msg_email_password_required', get_current_language()), "error")
             return redirect(url_for('register'))
 
+    ref_for_redirect = (request.form.get('ref') or request.args.get('ref') or '').strip()[:20]
+    phone_normalized = _normalize_phone_e164(phone) if phone else ''
+    if not phone_normalized or len(phone_normalized) < 10:
+        if request.is_json:
+            return jsonify({'message': 'Valid WhatsApp number is required'}), 400
+        flash(get_translation('msg_phone_required', get_current_language()), 'error')
+        return redirect(url_for('register', ref=ref_for_redirect) if ref_for_redirect else url_for('register'))
+
+    # Check duplicate phone (one account per WhatsApp number)
+    for u in User.query.filter(User.phone.isnot(None)).filter(User.phone != '').all():
+        if _normalize_phone_e164(u.phone) == phone_normalized:
+            if request.is_json:
+                return jsonify({'message': 'This WhatsApp number is already registered'}), 400
+            flash(get_translation('msg_phone_exists', get_current_language()), 'error')
+            return redirect(url_for('register', ref=ref_for_redirect) if ref_for_redirect else url_for('register'))
+
     if User.query.filter_by(email=email).first():
         if request.is_json:
             return jsonify({'message': 'User already exists'}), 400
         else:
             flash(get_translation('msg_user_exists', get_current_language()), "error")
-            return redirect(url_for('register'))
+            return redirect(url_for('register', ref=ref_for_redirect) if ref_for_redirect else url_for('register'))
 
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
@@ -937,7 +1016,7 @@ def register():
 
     now = datetime.utcnow()
     new_user = User(
-        email=email, password=hashed_password, referred_by_id=referred_by_id,
+        email=email, password=hashed_password, phone=phone_normalized, referred_by_id=referred_by_id,
         plan='free',
         credits_balance=CREDITS_FREE_PER_MONTH,
         credits_per_month=CREDITS_FREE_PER_MONTH,
@@ -973,12 +1052,114 @@ def login():
         user = User.query.filter_by(email=email).first()
         if user and bcrypt.check_password_hash(user.password, password):
             session['user'] = email
-            session['is_pro'] = (getattr(user, 'plan', None) in ('monthly', 'annual')) or user.is_pro
+            session['is_pro'] = (getattr(user, 'plan', None) in ('starter', 'pro', 'master', 'monthly', 'annual')) or user.is_pro
             session['is_admin'] = getattr(user, 'is_admin', False)
             return redirect(url_for('index'))
         flash(get_translation('msg_login_failed', get_current_language()), "error")
     return render_template('login.html')
 
+
+def _normalize_phone_e164(phone):
+    """Normalize to E.164 for Twilio (e.g. +60123456789)."""
+    if not phone:
+        return ''
+    s = re.sub(r'\s+', '', phone.strip())
+    if s.startswith('+'):
+        return s
+    if s.startswith('60'):
+        return '+' + s
+    if s.startswith('0'):
+        return '+6' + s  # Malaysia
+    return '+' + s
+
+
+@app.route('/login/otp/request', methods=['POST'])
+def login_otp_request():
+    """Send WhatsApp OTP via Twilio Verify. Phone only — OTP is sent to WhatsApp."""
+    phone = (request.form.get('phone') or '').strip()
+    phone = _normalize_phone_e164(phone)
+    if not phone or len(phone) < 10:
+        flash(get_translation('msg_login_otp_phone_required', get_current_language()), 'error')
+        return redirect(url_for('login', otp=1))
+    # Find user by phone (match normalized)
+    user = None
+    for u in User.query.filter(User.phone.isnot(None)).filter(User.phone != '').all():
+        if _normalize_phone_e164(u.phone) == phone:
+            user = u
+            break
+    if not user:
+        flash(get_translation('msg_login_otp_no_account', get_current_language()), 'error')
+        return redirect(url_for('login', otp=1))
+    sid = app.config.get('TWILIO_VERIFY_SERVICE_SID')
+    auth = (app.config.get('TWILIO_ACCOUNT_SID') or '', app.config.get('TWILIO_AUTH_TOKEN') or '')
+    if not sid or not auth[0] or not auth[1]:
+        flash(get_translation('msg_login_otp_unavailable', get_current_language()), 'error')
+        return redirect(url_for('login', otp=1))
+    try:
+        r = _requests.post(
+            f'https://verify.twilio.com/v2/Services/{sid}/Verifications',
+            auth=auth,
+            data={'To': phone, 'Channel': 'whatsapp'},
+            timeout=10
+        )
+        if r.status_code != 201:
+            flash(get_translation('msg_login_otp_send_failed', get_current_language()), 'error')
+            return redirect(url_for('login', otp=1))
+    except Exception as e:
+        if app.debug:
+            print('Twilio Verify error:', e)
+        flash(get_translation('msg_login_otp_send_failed', get_current_language()), 'error')
+        return redirect(url_for('login', otp=1))
+    session['otp_email'] = user.email
+    session['otp_phone'] = phone
+    flash(get_translation('msg_login_otp_sent', get_current_language()), 'success')
+    return redirect(url_for('login', otp_verify=1))
+
+
+@app.route('/login/otp/verify', methods=['POST'])
+def login_otp_verify():
+    """Verify OTP and log in; redirect to profile with set_password=1."""
+    code = (request.form.get('code') or '').strip()
+    email = session.get('otp_email')
+    phone = session.get('otp_phone')
+    if not code or not email or not phone:
+        flash(get_translation('msg_login_otp_invalid', get_current_language()), 'error')
+        return redirect(url_for('login', otp_verify=1))
+    sid = app.config.get('TWILIO_VERIFY_SERVICE_SID')
+    auth = (app.config.get('TWILIO_ACCOUNT_SID') or '', app.config.get('TWILIO_AUTH_TOKEN') or '')
+    if not sid or not auth[0]:
+        flash(get_translation('msg_login_otp_unavailable', get_current_language()), 'error')
+        return redirect(url_for('login'))
+    try:
+        r = _requests.post(
+            f'https://verify.twilio.com/v2/Services/{sid}/VerificationCheck',
+            auth=auth,
+            data={'To': phone, 'Code': code},
+            timeout=10
+        )
+        if r.status_code != 200 or (r.json() or {}).get('status') != 'approved':
+            flash(get_translation('msg_login_otp_invalid', get_current_language()), 'error')
+            return redirect(url_for('login', otp_verify=1))
+    except Exception as e:
+        if app.debug:
+            print('Twilio Verify check error:', e)
+        flash(get_translation('msg_login_otp_invalid', get_current_language()), 'error')
+        return redirect(url_for('login', otp_verify=1))
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        session.pop('otp_email', None)
+        session.pop('otp_phone', None)
+        return redirect(url_for('login'))
+    if not user.phone or _normalize_phone_e164(user.phone) != phone:
+        user.phone = phone
+        db.session.commit()
+    session['user'] = user.email
+    session['is_pro'] = (getattr(user, 'plan', None) in ('starter', 'pro', 'master', 'monthly', 'annual')) or user.is_pro
+    session['is_admin'] = getattr(user, 'is_admin', False)
+    session.pop('otp_email', None)
+    session.pop('otp_phone', None)
+    flash(get_translation('msg_login_otp_success', get_current_language()), 'success')
+    return redirect(url_for('profile', set_password='1'))
 
 
 def _send_password_reset_email(to_email, reset_url, lang='en'):
@@ -1064,6 +1245,83 @@ def logout():
     return redirect(url_for('login'))
 
 
+def _get_lucky_history(user_id, limit=10):
+    """Last N lucky numbers for user; favorites first, then by created_at desc. Returns id, number, created_at, is_favorite."""
+    if not user_id:
+        return []
+    rows = LuckyNumberHistory.query.filter_by(user_id=user_id).order_by(
+        LuckyNumberHistory.is_favorite.desc(),
+        LuckyNumberHistory.created_at.desc()
+    ).limit(limit).all()
+    return [{'id': r.id, 'number': r.number, 'created_at': r.created_at, 'is_favorite': getattr(r, 'is_favorite', False)} for r in rows]
+
+
+@app.route('/lucky', methods=['GET', 'POST'])
+def lucky_number():
+    """Lucky 4-digit generator. 1 credit per generation; history of last 10 (no category labels)."""
+    mode = 'general'
+    day_master = None
+    user = None
+    if session.get('user'):
+        user = User.query.filter_by(email=session['user']).first()
+        if user:
+            day_master = getattr(user, 'day_master', None)
+
+    if request.method == 'POST':
+        if not user:
+            flash(get_translation('msg_please_login', get_current_language()), 'error')
+            return redirect(url_for('login'))
+        balance = get_usage_credit_balance(user)
+        if balance < COST_LUCKY_GENERATION:
+            msg = get_translation('msg_insufficient_credits', get_current_language()).format(
+                cost=COST_LUCKY_GENERATION, balance=balance
+            )
+            flash(msg, 'error')
+            return redirect(url_for('lucky_number'))
+        mode = request.form.get('mode', 'general')
+        if mode == 'personal' and not day_master:
+            flash(get_translation('lucky_set_day_master', get_current_language()), 'error')
+            return redirect(url_for('lucky_number'))
+        existing = LuckyNumberHistory.query.filter_by(user_id=user.id).all()
+        if len(existing) >= 10 and all(getattr(r, 'is_favorite', False) for r in existing):
+            flash(get_translation('lucky_all_fav_notification', get_current_language()), 'error')
+            return redirect(url_for('lucky_number'))
+        if not deduct_usage_credits(user.id, COST_LUCKY_GENERATION, 'lucky_generation', reference_id=None):
+            flash(get_translation('msg_credit_deduction_failed', get_current_language()), 'error')
+            return redirect(url_for('lucky_number'))
+        number, _, _ = generate_lucky_4digit(mode=mode, day_master=day_master)
+        db.session.add(LuckyNumberHistory(user_id=user.id, number=number, is_favorite=False))
+        db.session.flush()
+        all_rows = LuckyNumberHistory.query.filter_by(user_id=user.id).order_by(
+            LuckyNumberHistory.is_favorite.asc(),
+            LuckyNumberHistory.created_at.asc()
+        ).all()
+        while len(all_rows) > 10:
+            to_remove = all_rows.pop(0)
+            db.session.delete(to_remove)
+        db.session.commit()
+        history = _get_lucky_history(user.id)
+        return render_template('lucky_number.html', generated=number, mode=mode, day_master=day_master, history=history)
+    history = _get_lucky_history(user.id if user else None)
+    return render_template('lucky_number.html', generated=None, mode=mode, day_master=day_master, history=history)
+
+
+@app.route('/lucky/toggle-favorite/<int:entry_id>', methods=['POST'])
+def lucky_toggle_favorite(entry_id):
+    """Toggle is_favorite for a lucky number history entry. Returns JSON."""
+    if not session.get('user'):
+        return jsonify({'ok': False, 'error': 'Login required'}), 401
+    user = User.query.filter_by(email=session['user']).first()
+    if not user:
+        return jsonify({'ok': False, 'error': 'Login required'}), 401
+    entry = LuckyNumberHistory.query.filter_by(id=entry_id, user_id=user.id).first()
+    if not entry:
+        return jsonify({'ok': False, 'error': 'Not found'}), 404
+    entry.is_favorite = not getattr(entry, 'is_favorite', False)
+    db.session.commit()
+    return jsonify({'ok': True, 'is_favorite': entry.is_favorite})
+
+
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
     if not session.get('user'):
@@ -1073,13 +1331,66 @@ def profile():
         return redirect(url_for('login'))
     if request.method == 'POST':
         user.display_name = (request.form.get('display_name') or '').strip() or None
-        user.phone = (request.form.get('phone') or '').strip() or None
+        raw_phone = (request.form.get('phone') or '').strip()
+        user.phone = _normalize_phone_e164(raw_phone) if raw_phone and len(_normalize_phone_e164(raw_phone)) >= 10 else None
+        dm = (request.form.get('day_master') or '').strip()
+        if dm in ('木', '火', '土', '金', '水'):
+            user.day_master = dm
+        else:
+            user.day_master = None
         db.session.commit()
         flash(get_translation('msg_profile_updated', get_current_language()), 'success')
         return redirect(url_for('profile'))
+    set_password_prompt = request.args.get('set_password') == '1'
+    mail_subscriber = getattr(user, 'mail_subscriber', False)
+    # Referral data (for inline section on profile)
+    if not user.referral_code:
+        for _ in range(5):
+            code = _generate_referral_code()
+            if not User.query.filter_by(referral_code=code).first():
+                user.referral_code = code
+                db.session.commit()
+                break
+    share_url = request.url_root.rstrip('/') + url_for('register') + '?ref=' + (user.referral_code or '')
+    referral_count = ReferralCreditGrant.query.filter_by(referrer_id=user.id).count()
     return render_template('profile.html', user=user,
                           credit_balance=get_usage_credit_balance(user),
-                          credit_balance_cents=get_credit_balance_cents(user.id))
+                          credit_balance_cents=get_credit_balance_cents(user.id),
+                          set_password_prompt=set_password_prompt, mail_subscriber=mail_subscriber,
+                          share_url=share_url, referral_code=user.referral_code or '',
+                          referral_count=referral_count, referral_bonus_cents=REFERRAL_BONUS_CENTS)
+
+
+@app.route('/profile/subscribe_mail', methods=['POST'])
+def profile_subscribe_mail():
+    """Subscribe to mail service for +4 credits per month."""
+    if not session.get('user'):
+        return redirect(url_for('login'))
+    user = User.query.filter_by(email=session['user']).first()
+    if not user:
+        return redirect(url_for('login'))
+    user.mail_subscriber = True
+    db.session.commit()
+    flash(get_translation('msg_mail_subscribed', get_current_language()), 'success')
+    return redirect(url_for('profile'))
+
+
+@app.route('/profile/set_password', methods=['POST'])
+def profile_set_password():
+    """Set or update password (e.g. after OTP login); suggest saving in browser/password app."""
+    if not session.get('user'):
+        return redirect(url_for('login'))
+    user = User.query.filter_by(email=session['user']).first()
+    if not user:
+        return redirect(url_for('login'))
+    password = (request.form.get('password') or '').strip()
+    if len(password) < 6:
+        flash(get_translation('msg_password_min', get_current_language()), 'error')
+        return redirect(url_for('profile', set_password='1'))
+    user.password = bcrypt.generate_password_hash(password).decode('utf-8')
+    db.session.commit()
+    flash(get_translation('msg_password_updated', get_current_language()), 'success')
+    return redirect(url_for('profile'))
 
 
 @app.route('/clear_history', methods=['POST'])
@@ -1154,86 +1465,44 @@ def referral():
 def pricing():
     return render_template('pricing.html')
 
-@app.route('/admin')
-@require_admin
-def admin_dashboard():
-    total_users = User.query.count()
-    pro_users = User.query.filter_by(is_pro=True).count()
-    total_referrals = ReferralCreditGrant.query.count()
-    voucher_available = Voucher.query.filter_by(status='AVAILABLE').count()
-    voucher_used = Voucher.query.filter_by(status='USED').count()
-    return render_template('admin/dashboard.html',
-        total_users=total_users, pro_users=pro_users,
-        total_referrals=total_referrals, voucher_available=voucher_available, voucher_used=voucher_used)
-
-@app.route('/admin/vouchers')
-@require_admin
-def admin_vouchers():
-    vouchers = Voucher.query.order_by(Voucher.created_at.desc()).all()
-    return render_template('admin/vouchers.html', vouchers=vouchers)
-
-@app.route('/admin/vouchers/create', methods=['GET', 'POST'])
-@require_admin
-def admin_voucher_create():
-    if request.method == 'POST':
-        code = (request.form.get('code') or '').strip().upper()
-        discount_percent = request.form.get('discount_percent', type=int)
-        valid_from_s = request.form.get('valid_from')
-        valid_until_s = request.form.get('valid_until')
-        if not code:
-            flash('请输入优惠码', 'error')
-            return redirect(url_for('admin_voucher_create'))
-        if Voucher.query.filter_by(code=code).first():
-            flash('该优惠码已存在', 'error')
-            return redirect(url_for('admin_voucher_create'))
-        if not (1 <= discount_percent <= 100):
-            flash('折扣比例须在 1-100 之间', 'error')
-            return redirect(url_for('admin_voucher_create'))
-        try:
-            valid_from = datetime.strptime(valid_from_s or '2000-01-01', '%Y-%m-%d')
-            valid_until = datetime.strptime(valid_until_s or '2099-12-31', '%Y-%m-%d')
-        except ValueError:
-            flash('日期格式错误', 'error')
-            return redirect(url_for('admin_voucher_create'))
-        if valid_until < valid_from:
-            flash('结束日期须晚于开始日期', 'error')
-            return redirect(url_for('admin_voucher_create'))
-        user = User.query.filter_by(email=session['user']).first()
-        v = Voucher(code=code, status='AVAILABLE', discount_percent=discount_percent,
-                    valid_from=valid_from, valid_until=valid_until, created_by_id=user.id if user else None)
-        db.session.add(v)
-        db.session.commit()
-        flash('优惠券已创建', 'success')
-        return redirect(url_for('admin_vouchers'))
-    return render_template('admin/voucher_create.html')
-
-@app.route('/admin/credit/grant', methods=['GET', 'POST'])
-@require_admin
-def admin_grant_credit():
-    if request.method == 'POST':
-        email = (request.form.get('email') or '').strip()
-        amount_cents = request.form.get('amount_cents', type=int) or 0
-        if not email or amount_cents <= 0:
-            flash('请输入有效邮箱和金额（分）', 'error')
-            return redirect(url_for('admin_grant_credit'))
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            flash('用户不存在', 'error')
-            return redirect(url_for('admin_grant_credit'))
-        admin_user = User.query.filter_by(email=session['user']).first()
-        db.session.add(CreditLedgerEntry(
-            user_id=user.id, type='CREDIT', amount_cents=amount_cents,
-            reference_type='admin_grant', reference_id=str(admin_user.id) if admin_user else None,
-            note='Admin grant'
-        ))
-        db.session.commit()
-        flash('已为用户 %s 充值 %s 分' % (email, amount_cents), 'success')
-        return redirect(url_for('admin_dashboard'))
-    return render_template('admin/grant_credit.html')
-
-@app.route('/contact')
+@app.route('/contact', methods=['GET', 'POST'])
 def contact():
-    return render_template('contact.html')
+    # Business WhatsApp number (no + or spaces). Set WHATSAPP_BUSINESS_NUMBER in .env e.g. 60123456789
+    whatsapp_number = (os.environ.get('WHATSAPP_BUSINESS_NUMBER') or '60123456789').strip().replace('+', '').replace(' ', '')
+    if request.method == 'POST':
+        services = request.form.getlist('services') or []
+        message = (request.form.get('message') or '').strip()
+        name = (request.form.get('name') or '').strip()
+        email = (request.form.get('email') or '').strip()
+        # Build structured message for WhatsApp
+        lines = [get_translation('contact_wa_intro', get_current_language())]
+        if services:
+            lines.append('')
+            lines.append(get_translation('contact_wa_services', get_current_language()) + ':')
+            service_labels = {
+                'change_phone': get_translation('contact_service_change_phone', get_current_language()),
+                'change_car_plate': get_translation('contact_service_change_car_plate', get_current_language()),
+                'read_bazi': get_translation('contact_service_read_bazi', get_current_language()),
+                'house_fengshui': get_translation('contact_service_house_fengshui', get_current_language()),
+            }
+            for s in services:
+                if s in service_labels:
+                    lines.append('• ' + service_labels[s])
+        if message:
+            lines.append('')
+            lines.append(get_translation('contact_wa_request', get_current_language()) + ':')
+            lines.append(message)
+        if name or email:
+            lines.append('')
+            if name:
+                lines.append(get_translation('contact_wa_name', get_current_language()) + ': ' + name)
+            if email:
+                lines.append(get_translation('contact_wa_email', get_current_language()) + ': ' + email)
+        text = '\n'.join(lines)
+        from urllib.parse import quote
+        encoded = quote(text, safe='')
+        return redirect(f'https://wa.me/{whatsapp_number}?text={encoded}', code=302)
+    return render_template('contact.html', whatsapp_number=whatsapp_number)
 
 @app.route('/set_language/<language>')
 def set_language_route(language):
@@ -1274,9 +1543,9 @@ def _fulfill_order(order):
             v.used_by_id = user.id
     user.is_pro = True
     user.plan = order.plan
-    user.credits_per_month = CREDITS_ANNUAL_PLAN if order.plan == 'annual' else CREDITS_MONTHLY_PLAN
+    user.credits_per_month = CREDITS_BY_PLAN.get(order.plan, CREDITS_FREE_PER_MONTH)
     now = datetime.utcnow()
-    extend_days = 365 if order.plan == 'annual' else 30
+    extend_days = 30
     if not user.pro_until or user.pro_until < now:
         user.pro_until = now + timedelta(days=extend_days)
     else:
@@ -1295,7 +1564,11 @@ def _fulfill_order(order):
             referrer_id=user.referred_by_id, referred_user_id=user.id
         ).first()
         if not existing:
-            bonus = REFERRAL_CREDITS_WHEN_ANNUAL if order.plan == 'annual' else REFERRAL_CREDITS_WHEN_MONTHLY
+            bonus = (
+                REFERRAL_CREDITS_WHEN_MASTER if order.plan == 'master' else
+                REFERRAL_CREDITS_WHEN_PRO if order.plan == 'pro' else
+                REFERRAL_CREDITS_WHEN_STARTER
+            )
             referrer = User.query.get(user.referred_by_id)
             if referrer:
                 referrer.credits_balance = (referrer.credits_balance or 0) + bonus
@@ -1368,8 +1641,8 @@ def subscribe(plan):
         return redirect(url_for('pricing'))
     base_cents = PLAN_PRICE_CENTS[plan]
     price_id = STRIPE_PRICE_IDS.get(plan)
-    if not price_id:
-        return "无效的订阅类型", 400
+    if not STRIPE_PRICE_IDS.get(plan):
+        pass  # we use price_data with unit_amount, so price_id optional
 
     if not session.get('user'):
         flash(get_translation('msg_please_login', get_current_language()), 'error')
@@ -1416,8 +1689,8 @@ def subscribe(plan):
                 'currency': 'myr',
                 'unit_amount': final_cents,
                 'product_data': {
-                    'name': ('月付 50 积分/月' if plan == 'monthly' else '年付 100 积分/月'),
-                    'description': 'RM19.90 月付 或 RM199 年付 · 数字分析 2 积分/次，AI 3 积分/次'
+                    'name': {'starter': 'Starter 150 credits/mo', 'pro': 'Pro 500 credits/mo', 'master': 'Master Unlimited'}.get(plan, plan),
+                    'description': 'Numerology analysis · Number 2 credits/use, AI 3 credits/use'
                 },
             },
             'quantity': 1,
@@ -1436,15 +1709,16 @@ def subscribe(plan):
 
 @app.route('/pay')
 def pay():
+    """Legacy one-off pay: redirects to Starter plan price."""
     checkout_session = stripe.checkout.Session.create(
         payment_method_types=['card'],
         line_items=[{
             'price_data': {
                 'currency': 'myr',
-                'unit_amount': PLAN_PRICE_CENTS['monthly'],  # RM68
+                'unit_amount': PLAN_PRICE_CENTS['starter'],
                 'product_data': {
-                    'name': '升级为大师版',
-                    'description': '解锁大师分析功能'
+                    'name': 'Starter 150 credits/mo',
+                    'description': 'Numerology analysis · 150 credits/month'
                 },
             },
             'quantity': 1,

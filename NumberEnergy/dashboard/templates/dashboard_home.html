@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold text-blue-400 mb-6">Dashboard</h1>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  <div class="bg-gray-800 rounded-xl p-6">
+    <p class="text-3xl font-bold text-white">{{ total_users }}</p>
+    <p class="text-gray-400 text-sm">Total users</p>
+  </div>
+  <div class="bg-gray-800 rounded-xl p-6">
+    <p class="text-3xl font-bold text-green-400">{{ pro_users }}</p>
+    <p class="text-gray-400 text-sm">Paid subscribers</p>
+  </div>
+  <div class="bg-gray-800 rounded-xl p-6">
+    <p class="text-3xl font-bold text-blue-400">{{ total_referrals }}</p>
+    <p class="text-gray-400 text-sm">Referrals</p>
+  </div>
+  <div class="bg-gray-800 rounded-xl p-6">
+    <p class="text-3xl font-bold text-amber-400">{{ voucher_available }}</p>
+    <p class="text-gray-400 text-sm">Vouchers available</p>
+  </div>
+</div>
+<div class="flex flex-wrap gap-4">
+  <a href="{{ url_for('subscribers') }}" class="px-6 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">Subscribers</a>
+  <a href="{{ url_for('vouchers_list') }}" class="px-6 py-3 rounded-lg bg-gray-700 text-white font-medium hover:bg-gray-600">Vouchers</a>
+  <a href="{{ url_for('voucher_create') }}" class="px-6 py-3 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700">Create voucher</a>
+  <a href="{{ url_for('grant_credit') }}" class="px-6 py-3 rounded-lg bg-amber-600 text-white font-medium hover:bg-amber-700">Top up credits</a>
+  <a href="{{ url_for('orders_list') }}" class="px-6 py-3 rounded-lg bg-gray-700 text-white font-medium hover:bg-gray-600">Orders</a>
+</div>
+{% endblock %}
