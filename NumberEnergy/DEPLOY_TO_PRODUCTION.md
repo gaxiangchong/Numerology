@@ -102,7 +102,7 @@ alembic upgrade head
 | `SENDGRID_API_KEY` | SG.xxx... | For forgot password emails |
 | `MAIL_DEFAULT_SENDER` | app.yishu@outlook.com | Verified sender in SendGrid |
 | `DATABASE_URL` | sqlite:///users.db | Or your DB path |
-| `YOUR_DOMAIN` | https://bazipro.pythonanywhere.com | For links in emails |
+| `YOUR_DOMAIN` | https://bazipro.pythonanywhere.com | **Required** for Stripe success/cancel redirects and links in emails |
 
 ---
 

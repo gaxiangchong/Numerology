@@ -52,7 +52,7 @@ except ImportError:
 # Replace with your real test keys
 stripe.api_key = "sk_test_51SA4PtPiKknSy39RC5uqzBKr1PSAEG2iCzlhtOKI0b6zK8qpECGCw1nZpq3tHZwbIDrDIK8hhZ8xofYucSmIJsg100FI2lDUDD"
 
-YOUR_DOMAIN = "http://127.0.0.1:8050"
+YOUR_DOMAIN = os.environ.get('YOUR_DOMAIN') or "http://127.0.0.1:8050"
 
 app = Flask(__name__)
 
