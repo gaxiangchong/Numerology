@@ -15,8 +15,15 @@ branch_labels = None
 depends_on = None
 
 
+def _column_exists(conn, table, column):
+    r = conn.execute(sa.text(f"PRAGMA table_info({table})"))
+    return any(row[1] == column for row in r.fetchall())
+
+
 def upgrade():
-    op.add_column('lucky_number_history', sa.Column('is_favorite', sa.Boolean(), nullable=False, server_default=sa.false()))
+    conn = op.get_bind()
+    if not _column_exists(conn, 'lucky_number_history', 'is_favorite'):
+        op.add_column('lucky_number_history', sa.Column('is_favorite', sa.Boolean(), nullable=False, server_default=sa.false()))
 
 
 def downgrade():

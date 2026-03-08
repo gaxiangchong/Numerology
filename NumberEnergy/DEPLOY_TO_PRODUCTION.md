@@ -125,6 +125,44 @@ alembic upgrade head
 
 ## Troubleshooting
 
+### Internal Server Error (e.g. on login)
+
+**1. Check the error log (most important)**
+
+On PythonAnywhere:
+1. Go to **Web** tab
+2. Scroll to **Log files**
+3. Click **Error log** — this shows the full Python traceback
+
+Common causes:
+- **"no such column"** → Database schema is out of date. Run migrations (Step 5 above).
+- **"no such table"** → Same: run `flask db upgrade` or `python migrate_db.py`.
+- **Database path wrong** → Set `DATABASE_URL` in Web → Environment variables, e.g.:
+  `sqlite:////home/bazipro/numerology-app/mysite/instance/users.db` (4 slashes for absolute path)
+
+**2. Run migrations if you haven't**
+
+```bash
+cd /home/bazipro/numerology-app
+export FLASK_APP=mysite/app.py
+flask db upgrade
+```
+
+Or:
+
+```bash
+cd /home/bazipro/numerology-app/mysite
+python migrate_db.py
+```
+
+**3. Ensure DATABASE_URL is correct**
+
+In **Web** → **Environment variables**, add:
+```
+DATABASE_URL=sqlite:////home/bazipro/numerology-app/mysite/instance/users.db
+```
+(Use 4 slashes for an absolute path. Create `mysite/instance` if it doesn't exist: `mkdir -p mysite/instance`)
+
 ### "SendGrid library not installed"
 Run: `pip install sendgrid --user` in the Bash console, then reload the app.
 

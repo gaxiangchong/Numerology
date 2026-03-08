@@ -15,8 +15,16 @@ branch_labels = None
 depends_on = None
 
 
+def _column_exists(conn, table, column):
+    """SQLite: check if column exists in table."""
+    r = conn.execute(sa.text(f"PRAGMA table_info({table})"))
+    return any(row[1] == column for row in r.fetchall())
+
+
 def upgrade():
-    op.add_column('user', sa.Column('day_master', sa.String(length=10), nullable=True))
+    conn = op.get_bind()
+    if not _column_exists(conn, 'user', 'day_master'):
+        op.add_column('user', sa.Column('day_master', sa.String(length=10), nullable=True))
 
 
 def downgrade():
