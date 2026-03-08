@@ -34,6 +34,15 @@ class User(db.Model):
     day_master = db.Column(db.String(10), nullable=True)
     # Mail subscription: +4 credits per month when True
     mail_subscriber = db.Column(db.Boolean, default=False, nullable=False)
+    # Email verification and profile completion
+    email_verified = db.Column(db.Boolean, default=False, nullable=False)
+    profile_completed = db.Column(db.Boolean, default=False, nullable=False)  # +5 credits/month when True
+    occupation = db.Column(db.String(100), nullable=True)
+    date_of_birth = db.Column(db.Date, nullable=True)
+    nationality = db.Column(db.String(80), nullable=True)
+    income_range = db.Column(db.String(50), nullable=True)  # e.g. "0-1000", "1000-5000"
+    income_currency = db.Column(db.String(10), nullable=True)  # USD, SGD, TWD, RMB, RM, OTHER
+    phone_country_code = db.Column(db.String(10), nullable=True)  # e.g. +60
 
     __table_args__ = (
         UniqueConstraint('referral_code', name='uq_user_referral_code'),
@@ -136,6 +145,31 @@ class PasswordResetToken(db.Model):
     used_at = db.Column(db.DateTime, nullable=True)
 
     user = db.relationship('User', backref=db.backref('password_reset_tokens', lazy='dynamic'))
+
+
+class EmailVerificationToken(db.Model):
+    """One-time token for email verification on signup."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    token = db.Column(db.String(64), unique=True, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    used_at = db.Column(db.DateTime, nullable=True)
+
+    user = db.relationship('User', backref=db.backref('email_verification_tokens', lazy='dynamic'))
+
+
+class ReferralProfileCompleteGrant(db.Model):
+    """One 25 usage-credit grant per (referrer, referred_user) when referred user completes profile."""
+    id = db.Column(db.Integer, primary_key=True)
+    referrer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    referred_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    credits_granted = db.Column(db.Integer, nullable=False, default=25)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    referrer = db.relationship('User', foreign_keys=[referrer_id])
+    referred_user = db.relationship('User', foreign_keys=[referred_user_id])
+    __table_args__ = (UniqueConstraint('referrer_id', 'referred_user_id', name='uq_referral_profile_complete'),)
 
 
 class PendingOrder(db.Model):

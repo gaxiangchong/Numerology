@@ -32,6 +32,27 @@ YOUR_DOMAIN=http://127.0.0.1:5000
 # TWILIO_AUTH_TOKEN=your_auth_token
 # TWILIO_VERIFY_SERVICE_SID=VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
+# Mail (forgot password + email verification)
+# Option A: SendGrid API (recommended) — set SENDGRID_API_KEY + MAIL_DEFAULT_SENDER (verified sender)
+# SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxx
+# MAIL_DEFAULT_SENDER=noreply@yourdomain.com
+#
+# Option B: SendGrid SMTP — username is literally "apikey", password = API key
+# MAIL_SERVER=smtp.sendgrid.net
+# MAIL_PORT=587
+# MAIL_USE_TLS=true
+# MAIL_USERNAME=apikey
+# MAIL_PASSWORD=SG.xxxxxxxxxxxxxxxx
+# MAIL_DEFAULT_SENDER=noreply@yourdomain.com
+#
+# Option C: Resend SMTP
+# MAIL_SERVER=smtp.resend.com
+# MAIL_PORT=587
+# MAIL_USE_TLS=true
+# MAIL_USERNAME=resend
+# MAIL_PASSWORD=re_xxxxxxxxxxxxxxxx
+# MAIL_DEFAULT_SENDER=onboarding@resend.dev
+
 # Dashboard (separate app, same DB). Create first admin via dashboard/create_admin.py
 # DASHBOARD_SECRET_KEY=your_dashboard_secret_key
 # Use same DATABASE_URL or SQLALCHEMY_DATABASE_URI when running the dashboard.

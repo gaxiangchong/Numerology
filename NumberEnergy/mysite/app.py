@@ -3,7 +3,8 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import (
     User, UserHistory, CreditLedgerEntry, Voucher,
-    ReferralCreditGrant, ReferralUsageCreditGrant, PendingOrder, PasswordResetToken,
+    ReferralCreditGrant, ReferralUsageCreditGrant, ReferralProfileCompleteGrant,
+    PendingOrder, PasswordResetToken, EmailVerificationToken,
     UsageCreditEntry, LuckyNumberHistory, _generate_referral_code
 )
 from extensions import db, migrate  # ✅ NEW
@@ -43,7 +44,7 @@ _env_mysite = os.path.join(_app_dir, '.env')
 try:
     from dotenv import load_dotenv
     load_dotenv(_env_root)
-    load_dotenv(_env_mysite)
+    load_dotenv(_env_mysite, override=True)  # mysite/.env overrides (Resend, etc.)
 except ImportError:
     _load_dotenv(_env_root)
     _load_dotenv(_env_mysite)
@@ -69,9 +70,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Mail (forgot password). Set env vars or leave unset to disable.
-# See FORGOT_PASSWORD_SETUP.md for free options (Gmail, Resend, Brevo).
-app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', '')       # e.g. smtp.gmail.com
+# Mail (forgot password + email verification). See FORGOT_PASSWORD_SETUP.md.
+# Option A: SendGrid API (preferred) — set SENDGRID_API_KEY + MAIL_DEFAULT_SENDER
+# Option B: SMTP — set MAIL_SERVER, MAIL_USERNAME, MAIL_PASSWORD, MAIL_DEFAULT_SENDER
+app.config['SENDGRID_API_KEY'] = os.environ.get('SENDGRID_API_KEY', '')
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', '')
 app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', '587'))
 app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() in ('1', 'true', 'yes')
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
@@ -144,24 +147,24 @@ def get_usage_credit_balance(user):
         return 0
     now = datetime.utcnow()
     reset_at = getattr(user, 'credit_reset_at', None)
+    mail_bonus = 4 if getattr(user, 'mail_subscriber', False) else 0
+    profile_bonus = CREDITS_PROFILE_COMPLETED_PER_MONTH if getattr(user, 'profile_completed', False) else 0
     if reset_at is None:
         # Backfill for existing users: grant initial credits and set first reset
         per_month = getattr(user, 'credits_per_month', None) or CREDITS_FREE_PER_MONTH
-        mail_bonus = 4 if getattr(user, 'mail_subscriber', False) else 0
         user.credits_per_month = per_month
-        user.credits_balance = (user.credits_balance or 0) + per_month + mail_bonus
+        user.credits_balance = (user.credits_balance or 0) + per_month + mail_bonus + profile_bonus
         user.credit_reset_at = now + timedelta(days=30)
         user.plan = getattr(user, 'plan', None) or 'free'
         db.session.add(UsageCreditEntry(
-            user_id=user.id, type='monthly_grant', amount=per_month,
+            user_id=user.id, type='monthly_grant', amount=per_month + mail_bonus + profile_bonus,
             reference_type='initial_backfill', reference_id=None
         ))
         db.session.commit()
         return max(0, user.credits_balance or 0)
     if now >= reset_at:
         per_month = getattr(user, 'credits_per_month', CREDITS_FREE_PER_MONTH) or CREDITS_FREE_PER_MONTH
-        mail_bonus = 4 if getattr(user, 'mail_subscriber', False) else 0
-        total_grant = per_month + mail_bonus
+        total_grant = per_month + mail_bonus + profile_bonus
         user.credits_balance = (user.credits_balance or 0) + total_grant
         user.credit_reset_at = now + timedelta(days=30)
         db.session.add(UsageCreditEntry(
@@ -224,6 +227,8 @@ COST_LUCKY_GENERATION = 1
 REFERRAL_CREDITS_WHEN_STARTER = 20
 REFERRAL_CREDITS_WHEN_PRO = 50
 REFERRAL_CREDITS_WHEN_MASTER = 100
+REFERRAL_PROFILE_COMPLETE_CREDITS = 25  # One-shot per referred user who completes profile
+CREDITS_PROFILE_COMPLETED_PER_MONTH = 5  # Extra credits/month when profile_completed
 
 # Plan base prices in cents. Starter RM39, Pro RM59, Master RM99 (monthly only).
 PLAN_PRICE_CENTS = {'starter': 3900, 'pro': 5900, 'master': 9900}
@@ -1017,7 +1022,7 @@ def register():
     now = datetime.utcnow()
     new_user = User(
         email=email, password=hashed_password, phone=phone_normalized, referred_by_id=referred_by_id,
-        plan='free',
+        plan='free', email_verified=False,
         credits_balance=CREDITS_FREE_PER_MONTH,
         credits_per_month=CREDITS_FREE_PER_MONTH,
         credit_reset_at=now + timedelta(days=30)
@@ -1033,10 +1038,21 @@ def register():
     db.session.add(new_user)
     db.session.commit()
 
+    # Email verification: send link
+    EmailVerificationToken.query.filter_by(user_id=new_user.id).delete()
+    token_str = secrets.token_urlsafe(32)
+    expires = now + timedelta(hours=24)
+    evt = EmailVerificationToken(user_id=new_user.id, token=token_str, expires_at=expires)
+    db.session.add(evt)
+    db.session.commit()
+    verify_url = request.url_root.rstrip('/') + url_for('verify_email', token=token_str)
+    lang = get_current_language()
+    _send_verification_email(new_user.email, verify_url, lang)
+
     if request.is_json:
         return jsonify({'message': 'User registered successfully', 'is_pro': new_user.is_pro}), 201
     else:
-        flash(get_translation('msg_register_success', get_current_language()), "success")
+        flash(get_translation('msg_verify_email_sent', get_current_language()), 'success')
         return redirect(url_for('login'))
 
 
@@ -1048,7 +1064,7 @@ def login():
         password = request.form.get('password') or ''
         if not email or not password:
             flash(get_translation('msg_fill_email_password', get_current_language()), "error")
-            return render_template('login.html')
+            return render_template('login.html', wa_otp_enabled=False)  # Set True to re-enable WhatsApp OTP
         user = User.query.filter_by(email=email).first()
         if user and bcrypt.check_password_hash(user.password, password):
             session['user'] = email
@@ -1056,7 +1072,7 @@ def login():
             session['is_admin'] = getattr(user, 'is_admin', False)
             return redirect(url_for('index'))
         flash(get_translation('msg_login_failed', get_current_language()), "error")
-    return render_template('login.html')
+    return render_template('login.html', wa_otp_enabled=False)  # Set True to re-enable WhatsApp OTP
 
 
 def _normalize_phone_e164(phone):
@@ -1162,29 +1178,91 @@ def login_otp_verify():
     return redirect(url_for('profile', set_password='1'))
 
 
-def _send_password_reset_email(to_email, reset_url, lang='en'):
-    """Send reset link via SMTP. No-op if MAIL_SERVER not configured."""
+def _send_email(to_email, subject, body_text, from_email=None):
+    """Send email via SendGrid API (if SENDGRID_API_KEY set) or SMTP. Returns True on success."""
+    from_addr = from_email or app.config.get('MAIL_DEFAULT_SENDER') or app.config.get('MAIL_USERNAME')
+    if not from_addr:
+        return False
+
+    # Option 1: SendGrid API
+    api_key = app.config.get('SENDGRID_API_KEY') or os.environ.get('SENDGRID_API_KEY')
+    if api_key:
+        try:
+            from sendgrid import SendGridAPIClient
+            from sendgrid.helpers.mail import Mail
+            message = Mail(
+                from_email=from_addr,
+                to_emails=to_email,
+                subject=subject,
+                plain_text_content=body_text
+            )
+            sg = SendGridAPIClient(api_key)
+            sg.send(message)
+            return True
+        except ImportError:
+            if app.debug:
+                print('SendGrid library not installed. Run: pip install sendgrid')
+        except Exception as e:
+            if app.debug:
+                print('SendGrid send failed:', e)
+            return False
+
+    # Option 2: SMTP
     if not app.config.get('MAIL_SERVER') or not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
         return False
     try:
         msg = MIMEMultipart('alternative')
-        msg['Subject'] = 'Reset your password - Numerology' if lang == 'en' else '重置密码 - 命理分析'
-        msg['From'] = app.config.get('MAIL_DEFAULT_SENDER') or app.config['MAIL_USERNAME']
+        msg['Subject'] = subject
+        msg['From'] = from_addr
         msg['To'] = to_email
-        text = f"Reset your password: {reset_url}\nLink valid for 1 hour."
-        if lang == 'zh':
-            text = f"请点击以下链接重置密码：{reset_url}\n链接1小时内有效。"
-        msg.attach(MIMEText(text, 'plain', 'utf-8'))
+        msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
         with smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT']) as s:
             if app.config.get('MAIL_USE_TLS'):
                 s.starttls()
             s.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
-            s.sendmail(msg['From'], to_email, msg.as_string())
+            s.sendmail(from_addr, to_email, msg.as_string())
         return True
     except Exception as e:
         if app.debug:
-            print('Mail send failed:', e)
+            print('SMTP send failed:', e)
         return False
+
+
+def _send_password_reset_email(to_email, reset_url, lang='en'):
+    """Send reset link. Uses SendGrid API if configured, else SMTP."""
+    subject = 'Reset your password - Numerology' if lang == 'en' else '重置密码 - 命理分析'
+    text = f"Reset your password: {reset_url}\nLink valid for 1 hour."
+    if lang == 'zh':
+        text = f"请点击以下链接重置密码：{reset_url}\n链接1小时内有效。"
+    return _send_email(to_email, subject, text)
+
+
+def _send_verification_email(to_email, verify_url, lang='en'):
+    """Send email verification link. Uses SendGrid API if configured, else SMTP."""
+    subject = 'Verify your email - Numerology' if lang == 'en' else '验证您的邮箱 - 命理分析'
+    text = f"Verify your email: {verify_url}\nAfter verification you can complete your profile to earn extra credits."
+    if lang == 'zh':
+        text = f"请点击以下链接验证您的邮箱：{verify_url}\n验证后可填写个人资料以获取更多积分。"
+    return _send_email(to_email, subject, text)
+
+
+@app.route('/verify_email/<token>')
+def verify_email(token):
+    """Mark email verified and redirect to profile to complete details."""
+    evt = EmailVerificationToken.query.filter_by(token=token).first()
+    if not evt or evt.used_at or evt.expires_at < datetime.utcnow():
+        flash(get_translation('msg_verify_link_invalid', get_current_language()), 'error')
+        return redirect(url_for('login'))
+    user = evt.user
+    user.email_verified = True
+    evt.used_at = datetime.utcnow()
+    db.session.commit()
+    flash(get_translation('msg_email_verified', get_current_language()), 'success')
+    # Log them in and send to profile to complete details
+    session['user'] = user.email
+    session['is_pro'] = (getattr(user, 'plan', None) in ('starter', 'pro', 'master', 'monthly', 'annual')) or user.is_pro
+    session['is_admin'] = getattr(user, 'is_admin', False)
+    return redirect(url_for('profile', complete_details='1'))
 
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
@@ -1322,6 +1400,26 @@ def lucky_toggle_favorite(entry_id):
     return jsonify({'ok': True, 'is_favorite': entry.is_favorite})
 
 
+def _is_profile_completed(user):
+    """True if required detail fields are filled for +5 credits and 'successful referral'."""
+    if not user:
+        return False
+    if not (getattr(user, 'occupation', None) or '').strip():
+        return False
+    if not getattr(user, 'date_of_birth', None):
+        return False
+    if not (getattr(user, 'nationality', None) or '').strip():
+        return False
+    if not (getattr(user, 'income_range', None) or '').strip():
+        return False
+    if not (getattr(user, 'income_currency', None) or '').strip():
+        return False
+    phone_ok = (getattr(user, 'phone', None) or '').strip()
+    if not phone_ok:
+        return False
+    return True
+
+
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
     if not session.get('user'):
@@ -1333,17 +1431,52 @@ def profile():
         user.display_name = (request.form.get('display_name') or '').strip() or None
         raw_phone = (request.form.get('phone') or '').strip()
         user.phone = _normalize_phone_e164(raw_phone) if raw_phone and len(_normalize_phone_e164(raw_phone)) >= 10 else None
+        user.phone_country_code = (request.form.get('phone_country_code') or '').strip() or None
+        user.occupation = (request.form.get('occupation') or '').strip() or None
+        user.nationality = (request.form.get('nationality') or '').strip() or None
+        user.income_range = (request.form.get('income_range') or '').strip() or None
+        user.income_currency = (request.form.get('income_currency') or '').strip() or None
+        dob_str = (request.form.get('date_of_birth') or '').strip()
+        if dob_str:
+            try:
+                from datetime import datetime as dt
+                user.date_of_birth = dt.strptime(dob_str, '%Y-%m-%d').date()
+            except ValueError:
+                user.date_of_birth = None
+        else:
+            user.date_of_birth = None
         dm = (request.form.get('day_master') or '').strip()
         if dm in ('木', '火', '土', '金', '水'):
             user.day_master = dm
         else:
             user.day_master = None
+        was_completed = getattr(user, 'profile_completed', False)
+        user.profile_completed = _is_profile_completed(user)
         db.session.commit()
+        # One-shot 25 credits to referrer when referred user first completes profile
+        if user.profile_completed and not was_completed and getattr(user, 'referred_by_id', None) and user.referred_by_id != user.id:
+            existing = ReferralProfileCompleteGrant.query.filter_by(
+                referrer_id=user.referred_by_id, referred_user_id=user.id
+            ).first()
+            if not existing:
+                referrer = User.query.get(user.referred_by_id)
+                if referrer:
+                    referrer.credits_balance = (referrer.credits_balance or 0) + REFERRAL_PROFILE_COMPLETE_CREDITS
+                    db.session.add(UsageCreditEntry(
+                        user_id=referrer.id, type='referral_profile_complete', amount=REFERRAL_PROFILE_COMPLETE_CREDITS,
+                        reference_type='referral_profile_complete', reference_id=str(user.id)
+                    ))
+                    db.session.add(ReferralProfileCompleteGrant(
+                        referrer_id=user.referred_by_id, referred_user_id=user.id,
+                        credits_granted=REFERRAL_PROFILE_COMPLETE_CREDITS
+                    ))
+                    db.session.commit()
         flash(get_translation('msg_profile_updated', get_current_language()), 'success')
         return redirect(url_for('profile'))
     set_password_prompt = request.args.get('set_password') == '1'
+    complete_details_prompt = request.args.get('complete_details') == '1'
     mail_subscriber = getattr(user, 'mail_subscriber', False)
-    # Referral data (for inline section on profile)
+    user_plan = getattr(user, 'plan', None) or 'free'
     if not user.referral_code:
         for _ in range(5):
             code = _generate_referral_code()
@@ -1353,12 +1486,19 @@ def profile():
                 break
     share_url = request.url_root.rstrip('/') + url_for('register') + '?ref=' + (user.referral_code or '')
     referral_count = ReferralCreditGrant.query.filter_by(referrer_id=user.id).count()
+    successful_grants = ReferralProfileCompleteGrant.query.filter_by(referrer_id=user.id).order_by(
+        ReferralProfileCompleteGrant.created_at.desc()
+    ).all()
+    successful_referrals = [{'email': g.referred_user.email, 'display_name': g.referred_user.display_name, 'created_at': g.created_at} for g in successful_grants]
+    successful_referral_count = len(successful_referrals)
     return render_template('profile.html', user=user,
                           credit_balance=get_usage_credit_balance(user),
                           credit_balance_cents=get_credit_balance_cents(user.id),
                           set_password_prompt=set_password_prompt, mail_subscriber=mail_subscriber,
                           share_url=share_url, referral_code=user.referral_code or '',
-                          referral_count=referral_count, referral_bonus_cents=REFERRAL_BONUS_CENTS)
+                          referral_count=referral_count, referral_bonus_cents=REFERRAL_BONUS_CENTS,
+                          complete_details_prompt=complete_details_prompt, user_plan=user_plan,
+                          successful_referrals=successful_referrals, successful_referral_count=successful_referral_count)
 
 
 @app.route('/profile/subscribe_mail', methods=['POST'])

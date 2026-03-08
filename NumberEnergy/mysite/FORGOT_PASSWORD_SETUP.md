@@ -1,12 +1,34 @@
 # Forgot Password – Email Setup
 
-The app sends password-reset links by SMTP. You can use a **free** or paid email service.
+The app sends password-reset and email-verification links. You can use **SendGrid API**, **SMTP** (Gmail, Resend, Brevo), or other providers.
 
 ---
 
-## Free options (no credit card)
+## Option 1: SendGrid API (recommended)
 
-### 1. **Gmail (recommended for small apps)**
+- **Cost**: Free tier **100 emails/day** for 60 days; then paid or other free options  
+- **Setup**: API key + verified sender email
+
+1. Sign up at [sendgrid.com](https://sendgrid.com)  
+2. Create an API key: Settings → API Keys → Create API Key (Mail Send > Full Access)  
+3. Verify a sender: Settings → Sender Authentication → Single Sender Verification (add your email)  
+4. Set in `mysite/.env`:
+
+   ```ini
+   SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxxxxx
+   MAIL_DEFAULT_SENDER=noreply@yourdomain.com
+   ```
+
+5. Install: `pip install sendgrid`  
+6. Restart the app. Forgot password and email verification will use SendGrid.
+
+**Note**: `MAIL_DEFAULT_SENDER` must be a verified sender in SendGrid (Single Sender or Domain Authentication).
+
+---
+
+## Option 2: SMTP providers
+
+### Gmail (quick setup)
 
 - **Cost**: Free  
 - **Limit**: ~500 emails/day (Gmail sending limit)  
@@ -65,7 +87,7 @@ The app sends password-reset links by SMTP. You can use a **free** or paid email
 
 ---
 
-### 2. **Resend**
+### Resend (SMTP)
 
 - **Cost**: Free tier **3,000 emails/month**  
 - **Setup**: API key, then use SMTP or their API (this app uses SMTP).
@@ -91,7 +113,7 @@ The app sends password-reset links by SMTP. You can use a **free** or paid email
 
 ---
 
-### 3. **Brevo (formerly Sendinblue)**
+### Brevo (formerly Sendinblue)
 
 - **Cost**: Free tier **300 emails/day**  
 - **Setup**: SMTP with Brevo credentials.
@@ -113,7 +135,7 @@ The app sends password-reset links by SMTP. You can use a **free** or paid email
 
 ---
 
-### 4. **Mailtrap (testing only)**
+### Mailtrap (testing only)
 
 - **Cost**: Free for testing  
 - **Use**: Catches all outgoing mail; **does not deliver** to real inboxes. Good for development.
@@ -156,7 +178,7 @@ load_dotenv()
 
 ## If mail is not configured
 
-If `MAIL_SERVER` / `MAIL_USERNAME` / `MAIL_PASSWORD` are not set:
+If neither **SendGrid API** (`SENDGRID_API_KEY`) nor **SMTP** (`MAIL_SERVER` / `MAIL_USERNAME` / `MAIL_PASSWORD`) is configured:
 
 - The “Forgot password” form still works.  
 - After submitting email, the user sees: **“邮件发送失败。请检查服务器邮件配置，或联系管理员。”** (or the English equivalent).  
@@ -164,13 +186,34 @@ If `MAIL_SERVER` / `MAIL_USERNAME` / `MAIL_PASSWORD` are not set:
 
 ---
 
+## SendGrid SMTP (alternative to API)
+
+If you prefer SMTP instead of the SendGrid API:
+
+- Server: `smtp.sendgrid.net`
+- Port: `587` (TLS)
+- Username: `apikey` (literally the string "apikey")
+- Password: your SendGrid API key (starts with `SG.`)
+
+```ini
+MAIL_SERVER=smtp.sendgrid.net
+MAIL_PORT=587
+MAIL_USE_TLS=true
+MAIL_USERNAME=apikey
+MAIL_PASSWORD=SG.xxxxxxxxxxxxxxxx
+MAIL_DEFAULT_SENDER=noreply@yourdomain.com
+```
+
+---
+
 ## Summary
 
-| Service   | Free tier        | Best for           |
-|----------|------------------|--------------------|
-| Gmail    | ~500/day         | Small apps, quick setup |
-| Resend   | 3,000/month      | Production, API/SMTP   |
-| Brevo    | 300/day          | Production, marketing   |
-| Mailtrap | Unlimited (inbox)| Development/testing only |
+| Method        | Service   | Free tier        | Best for                    |
+|---------------|-----------|------------------|-----------------------------|
+| **SendGrid API** | SendGrid  | 100/day (trial)  | Production, reliable         |
+| SMTP          | Gmail     | ~500/day         | Small apps, quick setup     |
+| SMTP          | Resend    | 3,000/month      | Production                  |
+| SMTP          | Brevo     | 300/day          | Production, marketing       |
+| SMTP          | Mailtrap  | Unlimited (inbox)| Development/testing only   |
 
-Use **Gmail + App Password** for a free, simple setup; use **Resend** or **Brevo** when you need more volume or a dedicated sending domain.
+**Recommended**: Use **SendGrid API** (`SENDGRID_API_KEY` + `MAIL_DEFAULT_SENDER`) for production. Fallback to SMTP (Gmail, Resend, Brevo) if preferred.

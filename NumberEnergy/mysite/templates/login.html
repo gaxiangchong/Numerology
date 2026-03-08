@@ -24,18 +24,20 @@
       {% endif %}
     {% endwith %}
 
-    <!-- Tabs: Password | WhatsApp OTP -->
+    <!-- Tabs: Password | WhatsApp OTP (OTP temporarily disabled) -->
     <div class="flex border-b border-soft mb-4">
-      <button type="button" id="tab-password" class="flex-1 py-2 text-sm font-medium {{ 'text-highlight border-b-2 border-highlight' if not request.args.get('otp_verify') and not request.args.get('otp') else 'text-soft hover:text-textlight' }}" aria-selected="{{ 'true' if not request.args.get('otp_verify') and not request.args.get('otp') else 'false' }}">
+      <button type="button" id="tab-password" class="flex-1 py-2 text-sm font-medium text-highlight border-b-2 border-highlight" aria-selected="true">
         {{ t('login_tab_password') }}
       </button>
-      <button type="button" id="tab-otp" class="flex-1 py-2 text-sm font-medium {{ 'text-highlight border-b-2 border-highlight' if request.args.get('otp_verify') or request.args.get('otp') else 'text-soft hover:text-textlight' }}" aria-selected="{{ 'true' if request.args.get('otp_verify') or request.args.get('otp') else 'false' }}">
+      {% if wa_otp_enabled %}
+      <button type="button" id="tab-otp" class="flex-1 py-2 text-sm font-medium text-soft hover:text-textlight" aria-selected="false">
         {{ t('login_tab_otp') }}
       </button>
+      {% endif %}
     </div>
 
     <!-- Password login -->
-    <div id="panel-password" class="login-panel {{ 'hidden' if request.args.get('otp_verify') or request.args.get('otp') else '' }}">
+    <div id="panel-password" class="login-panel">
       <form method="POST" action="{{ url_for('login') }}" class="space-y-4">
         <input type="hidden" name="csrf_placeholder" value="password">
         <div>
@@ -54,8 +56,9 @@
       </form>
     </div>
 
-    <!-- WhatsApp OTP: request (email + optional phone) or verify (code) -->
-    <div id="panel-otp" class="login-panel {{ 'hidden' if not request.args.get('otp_verify') and not request.args.get('otp') else '' }}">
+    <!-- WhatsApp OTP (temporarily disabled when wa_otp_enabled is False) -->
+    {% if wa_otp_enabled %}
+    <div id="panel-otp" class="login-panel hidden">
       {% if request.args.get('otp_verify') %}
         <p class="text-sm text-soft mb-3">{{ t('login_otp_enter_code') }}</p>
         <form method="POST" action="{{ url_for('login_otp_verify') }}" class="space-y-4">
@@ -84,6 +87,7 @@
         </form>
       {% endif %}
     </div>
+    {% endif %}
 
     <p class="text-sm text-center text-gray-400 mt-4">
       <a href="{{ url_for('forgot_password') }}" class="text-highlight hover:underline">{{ t('forgot_password') }}</a>
@@ -101,29 +105,31 @@
   var tabOtp = document.getElementById('tab-otp');
   var panelPassword = document.getElementById('panel-password');
   var panelOtp = document.getElementById('panel-otp');
-  if (!tabPassword || !tabOtp) return;
-  function showPassword() {
-    if (panelPassword) panelPassword.classList.remove('hidden');
-    if (panelOtp) panelOtp.classList.add('hidden');
-    tabPassword.classList.add('text-highlight', 'border-b-2', 'border-highlight');
-    tabPassword.classList.remove('text-soft');
-    tabOtp.classList.remove('text-highlight', 'border-b-2', 'border-highlight');
-    tabOtp.classList.add('text-soft');
-    tabPassword.setAttribute('aria-selected', 'true');
-    tabOtp.setAttribute('aria-selected', 'false');
+  if (!tabPassword) return;
+  if (tabOtp && panelOtp) {
+    function showPassword() {
+      if (panelPassword) panelPassword.classList.remove('hidden');
+      if (panelOtp) panelOtp.classList.add('hidden');
+      tabPassword.classList.add('text-highlight', 'border-b-2', 'border-highlight');
+      tabPassword.classList.remove('text-soft');
+      tabOtp.classList.remove('text-highlight', 'border-b-2', 'border-highlight');
+      tabOtp.classList.add('text-soft');
+      tabPassword.setAttribute('aria-selected', 'true');
+      tabOtp.setAttribute('aria-selected', 'false');
+    }
+    function showOtp() {
+      if (panelOtp) panelOtp.classList.remove('hidden');
+      if (panelPassword) panelPassword.classList.add('hidden');
+      tabOtp.classList.add('text-highlight', 'border-b-2', 'border-highlight');
+      tabOtp.classList.remove('text-soft');
+      tabPassword.classList.remove('text-highlight', 'border-b-2', 'border-highlight');
+      tabPassword.classList.add('text-soft');
+      tabOtp.setAttribute('aria-selected', 'true');
+      tabPassword.setAttribute('aria-selected', 'false');
+    }
+    tabPassword.addEventListener('click', showPassword);
+    tabOtp.addEventListener('click', showOtp);
   }
-  function showOtp() {
-    if (panelOtp) panelOtp.classList.remove('hidden');
-    if (panelPassword) panelPassword.classList.add('hidden');
-    tabOtp.classList.add('text-highlight', 'border-b-2', 'border-highlight');
-    tabOtp.classList.remove('text-soft');
-    tabPassword.classList.remove('text-highlight', 'border-b-2', 'border-highlight');
-    tabPassword.classList.add('text-soft');
-    tabOtp.setAttribute('aria-selected', 'true');
-    tabPassword.setAttribute('aria-selected', 'false');
-  }
-  tabPassword.addEventListener('click', showPassword);
-  tabOtp.addEventListener('click', showOtp);
 })();
 </script>
 {% endblock %}

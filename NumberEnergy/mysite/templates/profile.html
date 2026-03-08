@@ -5,6 +5,14 @@
 <div class="max-w-2xl mx-auto space-y-6 py-6">
   <h1 class="text-2xl font-bold text-highlight">{{ t('profile_title') }}</h1>
 
+  <!-- Complete profile prompt (after email verify) -->
+  {% if complete_details_prompt and not user.profile_completed %}
+  <section class="bg-blue-900/40 border border-blue-400/50 rounded-xl p-6" aria-labelledby="complete-details-heading">
+    <h2 id="complete-details-heading" class="text-lg font-semibold text-blue-300 mb-2">✨ {{ t('msg_email_verified') }}</h2>
+    <p class="text-sm text-gray-300">{{ t('profile_complete_banner') }}</p>
+  </section>
+  {% endif %}
+
   <!-- Set password prompt (e.g. after OTP login) -->
   {% if set_password_prompt %}
   <section class="bg-amber-900/30 border border-amber-500/50 rounded-xl p-6" aria-labelledby="set-password-heading">
@@ -23,23 +31,76 @@
   </section>
   {% endif %}
 
-  <!-- Profile details: editable -->
+  <!-- Profile details: reorganized -->
   <section class="bg-surface rounded-xl shadow-lg p-6 border border-soft/50" aria-labelledby="profile-details-heading">
     <h2 id="profile-details-heading" class="text-sm font-medium text-soft uppercase tracking-wide mb-4">{{ t('profile_details_title') }}</h2>
-    <form method="post" action="{{ url_for('profile') }}" class="space-y-4">
-      <div>
-        <label for="profile-email" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_email') }}</label>
-        <input type="email" id="profile-email" value="{{ user.email }}" readonly class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-gray-400 cursor-not-allowed" aria-readonly="true">
+    <form method="post" action="{{ url_for('profile') }}" class="space-y-5">
+      <div class="space-y-4">
+        <div>
+          <label for="profile-email" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_email') }}</label>
+          <input type="email" id="profile-email" value="{{ user.email }}" readonly class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-gray-400 cursor-not-allowed" aria-readonly="true">
+        </div>
+        <div>
+          <label for="profile-display-name" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_display_name') }}</label>
+          <input type="text" id="profile-display-name" name="display_name" value="{{ user.display_name or '' }}" placeholder="{{ t('profile_display_name') }}" class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-textlight placeholder-gray-500 focus:ring-2 focus:ring-highlight focus:border-transparent">
+        </div>
       </div>
-      <div>
-        <label for="profile-display-name" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_display_name') }}</label>
-        <input type="text" id="profile-display-name" name="display_name" value="{{ user.display_name or '' }}" placeholder="{{ t('profile_display_name') }}" class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-textlight placeholder-gray-500 focus:ring-2 focus:ring-highlight focus:border-transparent">
+
+      <div class="border-t border-soft/50 pt-4">
+        <h3 class="text-xs font-medium text-soft uppercase tracking-wide mb-3">Contact</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div class="sm:col-span-1">
+            <label for="profile-phone-country-code" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_phone_country_code') }}</label>
+            <input type="text" id="profile-phone-country-code" name="phone_country_code" value="{{ user.phone_country_code or '' }}" placeholder="+60" maxlength="10" class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-textlight focus:ring-2 focus:ring-highlight">
+          </div>
+          <div class="sm:col-span-3">
+            <label for="profile-phone" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_phone') }}</label>
+            <input type="tel" id="profile-phone" name="phone" value="{{ user.phone or '' }}" placeholder="{{ t('profile_phone') }}" class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-textlight placeholder-gray-500 focus:ring-2 focus:ring-highlight focus:border-transparent">
+          </div>
+        </div>
       </div>
-      <div>
-        <label for="profile-phone" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_phone') }}</label>
-        <input type="text" id="profile-phone" name="phone" value="{{ user.phone or '' }}" placeholder="{{ t('profile_phone') }}" class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-textlight placeholder-gray-500 focus:ring-2 focus:ring-highlight focus:border-transparent">
+
+      <div class="border-t border-soft/50 pt-4">
+        <h3 class="text-xs font-medium text-soft uppercase tracking-wide mb-3">Personal</h3>
+        <div class="space-y-4">
+          <div>
+            <label for="profile-occupation" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_occupation') }}</label>
+            <input type="text" id="profile-occupation" name="occupation" value="{{ user.occupation or '' }}" placeholder="{{ t('profile_occupation') }}" class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-textlight placeholder-gray-500 focus:ring-2 focus:ring-highlight">
+          </div>
+          <div>
+            <label for="profile-date-of-birth" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_date_of_birth') }}</label>
+            <input type="date" id="profile-date-of-birth" name="date_of_birth" value="{{ user.date_of_birth.isoformat() if user.date_of_birth else '' }}" class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-textlight focus:ring-2 focus:ring-highlight">
+          </div>
+          <div>
+            <label for="profile-nationality" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_nationality') }}</label>
+            <input type="text" id="profile-nationality" name="nationality" value="{{ user.nationality or '' }}" placeholder="{{ t('profile_nationality') }}" class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-textlight placeholder-gray-500 focus:ring-2 focus:ring-highlight">
+          </div>
+        </div>
       </div>
-      <div>
+
+      <div class="border-t border-soft/50 pt-4">
+        <h3 class="text-xs font-medium text-soft uppercase tracking-wide mb-3">{{ t('profile_income_section') }}</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="profile-income-range" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_income_range') }}</label>
+            <input type="text" id="profile-income-range" name="income_range" value="{{ user.income_range or '' }}" placeholder="e.g. 1000-5000" class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-textlight placeholder-gray-500 focus:ring-2 focus:ring-highlight">
+          </div>
+          <div>
+            <label for="profile-income-currency" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_income_currency') }}</label>
+            <select id="profile-income-currency" name="income_currency" class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-textlight focus:ring-2 focus:ring-highlight">
+              <option value="">{{ t('profile_income_currency') }}</option>
+              <option value="USD" {{ 'selected' if user.income_currency == 'USD' else '' }}>{{ t('currency_USD') }}</option>
+              <option value="SGD" {{ 'selected' if user.income_currency == 'SGD' else '' }}>{{ t('currency_SGD') }}</option>
+              <option value="TWD" {{ 'selected' if user.income_currency == 'TWD' else '' }}>{{ t('currency_TWD') }}</option>
+              <option value="RMB" {{ 'selected' if user.income_currency == 'RMB' else '' }}>{{ t('currency_RMB') }}</option>
+              <option value="RM" {{ 'selected' if user.income_currency == 'RM' else '' }}>{{ t('currency_RM') }}</option>
+              <option value="OTHER" {{ 'selected' if user.income_currency == 'OTHER' else '' }}>{{ t('currency_OTHER') }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-soft/50 pt-4">
         <label for="profile-day-master" class="block text-sm font-medium text-textlight mb-1">{{ t('profile_day_master') }}</label>
         <select id="profile-day-master" name="day_master" class="w-full px-4 py-3 rounded-lg bg-dark border border-soft text-textlight focus:ring-2 focus:ring-highlight focus:border-transparent">
           <option value="">{{ t('profile_day_master_placeholder') }}</option>
@@ -51,6 +112,7 @@
         </select>
         <p class="mt-1 text-xs text-soft">{{ t('profile_day_master_hint') }}</p>
       </div>
+
       <button type="submit" class="w-full min-h-[var(--touch-min)] flex items-center justify-center px-6 py-3 rounded-xl bg-highlight hover:bg-blue-600 text-white font-medium transition-colors focus-visible:ring-2 focus-visible:ring-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
         {{ t('profile_save') }}
       </button>
@@ -81,6 +143,7 @@
       <p class="text-sm text-gray-300 mt-1">· {{ t('credits_number_cost') }}</p>
       <p class="text-sm text-gray-300">· {{ t('credits_ai_cost') }}</p>
       <p class="text-sm text-gray-300">· {{ t('credits_referral_line') }}</p>
+      <p class="text-sm text-gray-300">· {{ t('profile_complete_banner') }}</p>
     </div>
   </section>
 
@@ -98,19 +161,38 @@
     <div class="grid grid-cols-2 gap-4 mb-4">
       <div class="bg-dark/50 rounded-lg p-4 text-center">
         <p class="text-2xl font-bold text-green-400">{{ referral_count }}</p>
-        <p class="text-soft text-xs">{{ t('profile_referral_count') }}</p>
+        <p class="text-soft text-xs">{{ t('referral_count_paid_label') }}</p>
       </div>
       <div class="bg-dark/50 rounded-lg p-4 text-center">
+        <p class="text-2xl font-bold text-amber-400">{{ successful_referral_count }}</p>
+        <p class="text-soft text-xs">{{ t('successful_referral_count_label') }}</p>
+      </div>
+      <div class="bg-dark/50 rounded-lg p-4 text-center sm:col-span-2">
         <p class="text-2xl font-bold text-highlight">RM{{ "%.2f"|format(credit_balance_cents / 100) }}</p>
         <p class="text-soft text-xs">{{ t('profile_store_balance') }}</p>
       </div>
     </div>
+    {% if successful_referrals %}
+    <div class="mb-4">
+      <h3 class="font-semibold text-textlight text-sm mb-2">{{ t('successful_referrals_heading') }}</h3>
+      <p class="text-soft text-xs mb-2">{{ t('successful_referrals_intro') }}</p>
+      <ul class="text-sm text-textlight space-y-1">
+        {% for ref in successful_referrals %}
+        <li class="flex justify-between items-center py-1 border-b border-soft/30">
+          <span>{{ ref.display_name or ref.email }}</span>
+          <span class="text-soft text-xs">{{ ref.created_at.strftime('%Y-%m-%d') if ref.created_at else '' }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
     <div class="bg-blue-900/30 border border-blue-500/30 rounded-lg px-4 py-3 text-left">
       <h3 class="font-semibold text-textlight text-sm mb-2">{{ t('profile_referral_rules_title') }}</h3>
       <ul class="text-soft text-xs space-y-1 list-disc list-inside">
         <li>{{ t('profile_referral_rule_1') }}</li>
         <li>{{ t('profile_referral_rule_2')|replace('{amount}', "%.2f"|format(referral_bonus_cents / 100)) }}</li>
         <li>{{ t('profile_referral_rule_3') }}</li>
+        <li>{{ t('profile_referral_rule_profile_complete') }}</li>
       </ul>
     </div>
   </section>
