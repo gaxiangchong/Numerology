@@ -163,6 +163,23 @@ DATABASE_URL=sqlite:////home/bazipro/numerology-app/mysite/instance/users.db
 ```
 (Use 4 slashes for an absolute path. Create `mysite/instance` if it doesn't exist: `mkdir -p mysite/instance`)
 
+**4. "no such column: user.day_master"**
+
+The app expects `day_master` but your DB doesn't have it. Run:
+
+```bash
+cd /home/bazipro/numerology-app/mysite
+# If your Web app uses DATABASE_URL from Web tab, set it here too:
+export DATABASE_URL="sqlite:////home/bazipro/numerology-app/mysite/instance/users.db"
+python add_day_master_column.py
+```
+
+Or add the column directly (find your DB path first):
+```bash
+find /home/bazipro -name "users.db" 2>/dev/null
+sqlite3 /path/to/users.db "ALTER TABLE user ADD COLUMN day_master VARCHAR(10);"
+```
+
 ### "SendGrid library not installed"
 Run: `pip install sendgrid --user` in the Bash console, then reload the app.
 
