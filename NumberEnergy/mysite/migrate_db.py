@@ -45,6 +45,13 @@ def run_migration():
             else:
                 print("user.is_admin already exists")
 
+            if not column_exists(conn, "user", "day_master"):
+                conn.execute(text("ALTER TABLE user ADD COLUMN day_master VARCHAR(10)"))
+                conn.commit()
+                print("Added user.day_master")
+            else:
+                print("user.day_master already exists")
+
             # 2) Create new tables if they don't exist (create_all only creates missing tables)
             db.create_all()
             print("Ensured all tables exist (credit_ledger_entry, voucher, referral_credit_grant, pending_order, password_reset_token).")
